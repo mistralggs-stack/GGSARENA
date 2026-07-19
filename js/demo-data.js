@@ -20,6 +20,13 @@ export const DEMO = [
   { player_name: 'MalikGG', game: 'typing', score: 92,  detail: { wpm: 101, accuracy: 91, keyboard: 'Ajazz AK820',  switches: 'Cherry MX Red',    discord: '@malik' } },
   { player_name: 'Dovah',   game: 'typing', score: 77,  detail: { wpm: 88,  accuracy: 87, keyboard: 'Mode Sonnet',  switches: 'Alpaca',           discord: '@dovahh' } },
 
+  // ---------- CPS TEST ----------
+  { player_name: 'SasaFPS', game: 'cps', score: 118, detail: { cps: 11.8, peak_sec: 14, consistency: 88, clicks: 118, mouse: 'Pulsar X2',          switches: 'Kailh 8.0',        polling: 1000, technique: 'Jitter',    discord: '@sasa' } },
+  { player_name: 'Reyz',    game: 'cps', score: 104, detail: { cps: 10.4, peak_sec: 13, consistency: 85, clicks: 104, mouse: 'Vaxee XE',           switches: 'Huano Blue Shell', polling: 8000, technique: 'Butterfly', discord: '@reyz' } },
+  { player_name: 'MalikGG', game: 'cps', score: 89,  detail: { cps: 8.9,  peak_sec: 11, consistency: 82, clicks: 89,  mouse: 'Logitech GPX 2',     switches: 'Omron',            polling: 2000, technique: 'Normal',    discord: '@malik' } },
+  { player_name: 'Dovah',   game: 'cps', score: 81,  detail: { cps: 8.1,  peak_sec: 10, consistency: 79, clicks: 81,  mouse: 'Razer Viper V3 Pro', switches: 'Razer Optical',    polling: 8000, technique: 'Normal',    discord: '@dovahh' } },
+  { player_name: 'Bagas',   game: 'cps', score: 74,  detail: { cps: 7.4,  peak_sec: 9,  consistency: 76, clicks: 74,  mouse: 'Lamzu Atlantis',     switches: 'Huano Pink Dot',   polling: 4000, technique: 'Normal',    discord: '@bagasgg' } },
+
   // ---------- REACTION TIME ----------
   { player_name: 'Dovah',   game: 'reaction', score: 469, detail: { avg_ms: 128, best_ms: 116, rounds: 5, mouse: 'Razer Viper V3 Pro', polling: 8000, discord: '@dovahh' } },
   { player_name: 'Reyz',    game: 'reaction', score: 432, detail: { avg_ms: 139, best_ms: 122, rounds: 5, mouse: 'Vaxee XE',            polling: 8000, discord: '@reyz' } },

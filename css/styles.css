@@ -164,10 +164,13 @@ a{ color:var(--accent-ink); }
    ============================================================ */
 .stations{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  grid-template-columns:repeat(4,1fr);
   grid-template-rows:auto auto;   /* baris-1: kartu · baris-2: leaderboard */
-  gap:16px;
+  gap:14px;
   margin-top:22px;
+}
+@media (max-width:1060px) and (min-width:861px){
+  .stations{ grid-template-columns:repeat(2,1fr); }
 }
 .station{
   border:1.5px solid var(--ink);

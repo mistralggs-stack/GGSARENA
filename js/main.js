@@ -9,11 +9,13 @@ import { isMuted, toggleMute } from './fx.js';
 import { createAimGame } from './games/aim.js';
 import { createTypingGame } from './games/typing.js';
 import { createReactionGame } from './games/reaction.js';
+import { createCpsGame } from './games/cps.js';
 
 const GAME_META = {
   aim:      { label: 'Aim Trainer',   unit: 'PTS', factory: createAimGame },
   typing:   { label: 'Typing Test',   unit: 'PTS', factory: createTypingGame },
   reaction: { label: 'Reaction Time', unit: 'PTS', factory: createReactionGame },
+  cps:      { label: 'CPS Test',      unit: 'KLIK', factory: createCpsGame },
 };
 
 const instances = {};   // game instances (lazy)
@@ -48,6 +50,12 @@ function gearLine(game, d = {}) {
     if (d.keyboard) parts.push(gearLink(d.keyboard));
     if (d.switches) parts.push(gearLink(d.switches));
   }
+  if (game === 'cps') {
+    if (d.mouse) parts.push(gearLink(d.mouse));
+    if (d.switches) parts.push(gearLink(d.switches));
+    if (d.polling) parts.push(esc(`${d.polling}Hz`));
+    if (d.technique) parts.push(esc(d.technique));
+  }
   if (d.discord) parts.push(esc(d.discord));
   return parts.join(' · ');
 }
@@ -56,6 +64,7 @@ function scoreSub(game, d = {}) {
   if (game === 'aim') return `${d.accuracy ?? 0}% · x${d.max_combo ?? 1}`;
   if (game === 'typing') return `${d.wpm ?? 0} WPM · ${d.accuracy ?? 0}%`;
   if (game === 'reaction') return `${d.avg_ms ?? '—'}ms avg`;
+  if (game === 'cps') return `${d.cps ?? 0} CPS`;
   return '';
 }
 
