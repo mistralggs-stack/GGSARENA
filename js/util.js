@@ -1,0 +1,95 @@
+// ============================================================
+// GGS ARENA — utilities
+// ============================================================
+
+export const $  = (sel, root = document) => root.querySelector(sel);
+export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+/** Escape untuk render aman ke innerHTML */
+export const esc = (s) =>
+  String(s ?? '').replace(/[&<>"']/g, (m) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]
+  ));
+
+/** Clamp angka */
+export const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+
+/** Rentang acak inklusif */
+export const rand = (min, max) => min + Math.random() * (max - min);
+
+/** Format angka ribuan: 12345 -> 12.345 (id-ID) */
+export const fmtNum = (n) => Number(n || 0).toLocaleString('id-ID');
+
+/** Bersihkan & batasi panjang input teks */
+export const cleanText = (s, max = 40) => String(s ?? '').trim().slice(0, max);
+
+/** Toast notifikasi ringan */
+let _toastEl = null;
+let _toastTimer = null;
+export function toast(msg, ms = 2200) {
+  if (!_toastEl) {
+    _toastEl = document.createElement('div');
+    _toastEl.className = 'toast';
+    document.body.appendChild(_toastEl);
+  }
+  _toastEl.textContent = msg;
+  _toastEl.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => _toastEl.classList.remove('show'), ms);
+}
+
+/** Format sisa waktu -> "2h 04:12:33" untuk countdown event */
+export function fmtCountdown(ms) {
+  if (ms <= 0) return 'SELESAI';
+  const s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return (d > 0 ? `${d}h ` : '') + `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+
+/** Kirim skor ke parent window (untuk mode embed / integrasi lain) */
+export function postToParent(payload) {
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'ggs:score', ...payload }, '*');
+    }
+  } catch (_) { /* no-op */ }
+}
+
+/** Baca query param */
+export const qp = (key) => new URLSearchParams(location.search).get(key);
+
+/** Pasang tombol fullscreen buat sebuah elemen (cross-browser + auto-label) */
+export function wireFullscreen(btn, el) {
+  if (!btn || !el) return;
+  const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
+  const paint = () => { btn.textContent = fsEl() === el ? '⛶ Keluar Layar Penuh' : '⛶ Layar Penuh'; };
+  btn.addEventListener('click', () => {
+    try {
+      if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+      else { const r = el.requestFullscreen || el.webkitRequestFullscreen; if (r) r.call(el); }
+    } catch (_) { toast('Browser nolak fullscreen 😅'); }
+  });
+  document.addEventListener('fullscreenchange', paint);
+  document.addEventListener('webkitfullscreenchange', paint);
+  paint();
+}
+
+/**
+ * Share / tantang skor. Pakai native share (mobile) kalau ada,
+ * fallback ke copy clipboard + buka WhatsApp.
+ * return: 'shared' | 'cancel' | 'fallback'
+ */
+export async function shareScore({ gameLabel, score, line = '', url }) {
+  const shareUrl = url || location.href.split('#')[0];
+  const text = `Gw dapet ${score} PTS di ${gameLabel} — GGS Arena 🔥${line ? ' (' + line + ')' : ''} Kalahin kalo bisa 👉`;
+  try {
+    if (navigator.share) { await navigator.share({ title: 'GGS Arena', text, url: shareUrl }); return 'shared'; }
+  } catch (e) { if (e && e.name === 'AbortError') return 'cancel'; }
+  try { await navigator.clipboard.writeText(`${text} ${shareUrl}`); } catch { /* no-op */ }
+  try { window.open('https://wa.me/?text=' + encodeURIComponent(`${text} ${shareUrl}`), '_blank', 'noopener'); } catch { /* no-op */ }
+  return 'fallback';
+}

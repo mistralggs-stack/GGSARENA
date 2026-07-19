@@ -1,0 +1,16 @@
+# Supabase / local credentials — JANGAN commit
+js/config.js
+.env
+.env.local
+.env.*.local
+
+# Dependencies (kalau nanti pakai tooling)
+node_modules/
+dist/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
