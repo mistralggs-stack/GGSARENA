@@ -4,7 +4,7 @@
 // Combo x1–x5. Skor = akumulasi poin (10 x multiplier per hit).
 // ============================================================
 
-import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen } from '../util.js';
+import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 
@@ -60,7 +60,8 @@ export function createAimGame(ctx) {
           <div class="result-metric"><div class="m-val" id="aim-m-hits">0</div><div class="m-label">Hit / Miss</div></div>
         </div>
         <div class="modal-body">
-          <div class="form-grid">
+          <div class="mobile-gate" id="aim-gate" hidden></div>
+          <div class="form-grid" id="aim-form">
             <label class="field"><span>Nickname</span><input id="aim-name" maxlength="18" placeholder="nickname lo"></label>
             <label class="field"><span>Discord (ops)</span><input id="aim-discord" maxlength="32" placeholder="@discord"></label>
             <label class="field"><span>Mouse (ops)</span><input id="aim-mouse" maxlength="40" placeholder="Lamzu Atlantis"></label>
@@ -131,6 +132,7 @@ export function createAimGame(ctx) {
     t.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       if (!st || !st.running) return;
+      if (e.pointerType === 'touch') st.usedTouch = true;   // main pakai jari?
       clearTimeout(st.miss_timer);
       registerHit();
       spawn();
@@ -179,7 +181,7 @@ export function createAimGame(ctx) {
 
   function start() {
     if (st && st.running) return;
-    st = { running: true, time: DURATION, hits: 0, miss: 0, streak: 0, score: 0, maxMult: 1, lastMult: 1, acc: 0, miss_timer: null, tick_timer: null };
+    st = { running: true, time: DURATION, hits: 0, miss: 0, streak: 0, score: 0, maxMult: 1, lastMult: 1, acc: 0, usedTouch: false, miss_timer: null, tick_timer: null };
     hint.style.display = 'none';
     hideResult();
     elScore.textContent = '0'; elCombo.textContent = 'x1'; elAcc.textContent = '0%'; elTime.textContent = DURATION.toFixed(1);
@@ -215,13 +217,22 @@ export function createAimGame(ctx) {
     $('#aim-hero-tag', root).textContent =
       st.acc >= 85 ? 'Aim dewa! ⚡' : st.acc >= 65 ? 'Gacor! 🔥' : st.acc >= 45 ? 'Lumayan, gas lagi 💪' : 'Latihan lagi 🎯';
 
-    const rec = checkRecord('aim', st.score);
+    // gate: main pakai layar sentuh -> nggak bisa submit (& rekor pribadi gak dihitung)
+    const mobileRun = st.usedTouch;
     const recEl = $('#aim-record', root);
-    recEl.hidden = !rec.meaningful;
-    if (rec.meaningful) recEl.textContent = `★ REKOR PRIBADI BARU! (dari ${rec.prev})`;
+    let isRec = false;
+    if (!mobileRun) {
+      const rec = checkRecord('aim', st.score);
+      isRec = rec.meaningful;
+      if (isRec) recEl.textContent = `★ REKOR PRIBADI BARU! (dari ${rec.prev})`;
+    }
+    recEl.hidden = !isRec;
+
+    $('#aim-gate', root).textContent = MOBILE_BLOCK_MSG;
+    setSubmitGate(root, mobileRun, { gate: '#aim-gate', form: '#aim-form', save: '#aim-save' });
     showResult();
     countUp($('#aim-hero-score', root), st.score);
-    if (rec.meaningful) { confetti(); sfx.record(); } else { sfx.win(); }
+    if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
     $('#aim-name', root).value = localStorage.getItem('ggs_nick') || '';
     $('#aim-name', root).focus();
   }

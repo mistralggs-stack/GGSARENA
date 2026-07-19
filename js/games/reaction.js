@@ -6,7 +6,7 @@
 // Skor = 60000 / rata² ms (makin cepet & akurat makin gede).
 // ============================================================
 
-import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen } from '../util.js';
+import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 
@@ -72,7 +72,8 @@ export function createReactionGame(ctx) {
           <div class="result-metric"><div class="m-val" id="rx-m-err">0</div><div class="m-label">Salah Klik</div></div>
         </div>
         <div class="modal-body">
-          <div class="form-grid">
+          <div class="mobile-gate" id="rx-gate" hidden></div>
+          <div class="form-grid" id="rx-form">
             <label class="field"><span>Nickname</span><input id="rx-name" maxlength="18" placeholder="nickname lo"></label>
             <label class="field"><span>Discord (ops)</span><input id="rx-discord" maxlength="32" placeholder="@discord"></label>
             <label class="field"><span>Mouse (ops)</span><input id="rx-mouse" maxlength="40" placeholder="Lamzu Atlantis"></label>
@@ -140,7 +141,7 @@ export function createReactionGame(ctx) {
 
   function reset() {
     clearTimeout(timer);
-    st = { times: [], errors: 0, round: 0, phase: 'idle', target: null, goAt: 0, seq: [], seqIdx: 0 };
+    st = { times: [], errors: 0, round: 0, phase: 'idle', target: null, goAt: 0, seq: [], seqIdx: 0, usedTouch: false };
     last = null;
     hideResult();
     hideInstruct();
@@ -228,22 +229,30 @@ export function createReactionGame(ctx) {
       (st.errors === 0 && avg <= 320 ? 'Bersih & ngebut! ⚡ ' : '') +
       (avg <= 320 ? 'Refleks + otak dewa!' : avg <= 430 ? 'Mantul! 🔥' : 'Lumayan, gas lagi 💪');
 
-    const rec = checkRecord('reaction', score);
+    const mobileRun = st.usedTouch;
     const recEl = $('#rx-record', root);
-    recEl.hidden = !rec.meaningful;
-    if (rec.meaningful) recEl.textContent = `★ REKOR PRIBADI BARU! (dari ${rec.prev})`;
+    let isRec = false;
+    if (!mobileRun) {
+      const rec = checkRecord('reaction', score);
+      isRec = rec.meaningful;
+      if (isRec) recEl.textContent = `★ REKOR PRIBADI BARU! (dari ${rec.prev})`;
+    }
+    recEl.hidden = !isRec;
+
+    $('#rx-gate', root).textContent = MOBILE_BLOCK_MSG;
+    setSubmitGate(root, mobileRun, { gate: '#rx-gate', form: '#rx-form', save: '#rx-save' });
     showResult();
     countUp($('#rx-hero-score', root), score);
-    if (rec.meaningful) { confetti(); sfx.record(); } else { sfx.win(); }
+    if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
     $('#rx-name', root).value = localStorage.getItem('ggs_nick') || '';
   }
 
-  pad.addEventListener('pointerdown', () => {
+  pad.addEventListener('pointerdown', (e) => {
     const p = st ? st.phase : 'idle';
     if (p === 'idle') return beginRound();
     if (p === 'wait') return penalty('early');
     if (p === 'trap') return penalty('wrong');
-    if (p === 'go') return recordHit();
+    if (p === 'go') { if (e.pointerType === 'touch') st.usedTouch = true; return recordHit(); }
     if (p === 'early' || p === 'wrong') return beginRound();     // ulang ronde ini
     if (p === 'roundresult') return beginRound();                // lanjut ronde
     // 'done' -> diam, tinggal simpan

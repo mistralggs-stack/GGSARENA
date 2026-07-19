@@ -62,6 +62,26 @@ export function postToParent(payload) {
 /** Baca query param */
 export const qp = (key) => new URLSearchParams(location.search).get(key);
 
+// ---------- Deteksi input (buat fairness leaderboard) ----------
+export const hasFinePointer = () => !!(window.matchMedia && window.matchMedia('(pointer: fine)').matches);   // ada mouse/trackpad/pen
+export const isTouchOnly    = () => !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) && !hasFinePointer();
+
+export const MOBILE_BLOCK_MSG =
+  'Sistem mendeteksi kamu main pakai layar sentuh 📱. Skor dari HP nggak bisa masuk leaderboard biar adil — buat ikut kompetisi, main pakai mouse & keyboard di komputer ya! 🖱️⌨️';
+
+/**
+ * Atur popup pas mobile-run: tampilin notice, sembunyiin form + tombol simpan.
+ * sel = { gate, form, save } (CSS selector relatif ke root)
+ */
+export function setSubmitGate(root, blocked, sel) {
+  const gate = root.querySelector(sel.gate);
+  const form = root.querySelector(sel.form);
+  const save = root.querySelector(sel.save);
+  if (gate) gate.hidden = !blocked;
+  if (form) form.style.display = blocked ? 'none' : '';
+  if (save) save.style.display = blocked ? 'none' : '';
+}
+
 /** Pasang tombol fullscreen buat sebuah elemen (cross-browser + auto-label) */
 export function wireFullscreen(btn, el) {
   if (!btn || !el) return;

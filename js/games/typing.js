@@ -5,7 +5,7 @@
 // Skor = WPM x akurasi (contoh 80 WPM @ 95% = 76).
 // ============================================================
 
-import { $, esc, cleanText, toast, shareScore, wireFullscreen } from '../util.js';
+import { $, esc, cleanText, toast, shareScore, wireFullscreen, isTouchOnly, MOBILE_BLOCK_MSG, setSubmitGate } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 
@@ -74,7 +74,8 @@ export function createTypingGame(ctx) {
           <div class="result-metric"><div class="m-val" id="typ-m-acc">0%</div><div class="m-label">Akurasi</div></div>
         </div>
         <div class="modal-body">
-          <div class="form-grid">
+          <div class="mobile-gate" id="typ-gate" hidden></div>
+          <div class="form-grid" id="typ-form">
             <label class="field"><span>Nickname</span><input id="typ-name" maxlength="18" placeholder="nickname lo"></label>
             <label class="field"><span>Discord (ops)</span><input id="typ-discord" maxlength="32" placeholder="@discord"></label>
             <label class="field"><span>Keyboard (ops)</span><input id="typ-kbd" maxlength="40" placeholder="Keychron Q1"></label>
@@ -166,13 +167,21 @@ export function createTypingGame(ctx) {
     $('#typ-hero-tag', root).textContent =
       r.wpm >= 90 ? 'Jari dewa! ⚡' : r.wpm >= 60 ? 'Gacor! 🔥' : r.wpm >= 35 ? 'Lumayan, gas lagi 💪' : 'Warm up dulu 🐢';
 
-    const rec = checkRecord('typing', r.score);
+    const mobileRun = isTouchOnly();
     const recEl = $('#typ-record', root);
-    recEl.hidden = !rec.meaningful;
-    if (rec.meaningful) recEl.textContent = `★ REKOR PRIBADI BARU! (dari ${rec.prev})`;
+    let isRec = false;
+    if (!mobileRun) {
+      const rec = checkRecord('typing', r.score);
+      isRec = rec.meaningful;
+      if (isRec) recEl.textContent = `★ REKOR PRIBADI BARU! (dari ${rec.prev})`;
+    }
+    recEl.hidden = !isRec;
+
+    $('#typ-gate', root).textContent = MOBILE_BLOCK_MSG;
+    setSubmitGate(root, mobileRun, { gate: '#typ-gate', form: '#typ-form', save: '#typ-save' });
     showResult();
     countUp($('#typ-hero-score', root), r.score);
-    if (rec.meaningful) { confetti(); sfx.record(); } else { sfx.win(); }
+    if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
     $('#typ-name', root).value = localStorage.getItem('ggs_nick') || '';
     $('#typ-name', root).focus();
   }

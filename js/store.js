@@ -14,6 +14,7 @@ export const SCORE_LIMITS = {
   aim:      { min: 0, max: 20000 },   // hits*combo dalam 30s realistis < ~beberapa ribu
   typing:   { min: 0, max: 400 },     // WPM x akurasi
   reaction: { min: 0, max: 1000 },    // skor = poin refleks (makin tinggi makin bagus)
+  cps:      { min: 0, max: 300 },     // total klik 10 detik (30 cps = batas ekstrem drag-click)
 };
 
 function readAll() {
