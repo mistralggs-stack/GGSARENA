@@ -3,7 +3,7 @@
 // Routing view, mount game, render leaderboard, submit skor.
 // ============================================================
 
-import { $, $$, esc, qp, postToParent } from './util.js';
+import { $, $$, esc, qp, postToParent, isTouchOnly } from './util.js';
 import { submitScore, getLeaderboard, getRank, onNewScore, seedDemo, clearDemo, BACKEND } from './store.js';
 import { isMuted, toggleMute } from './fx.js';
 import { createAimGame } from './games/aim.js';
@@ -280,6 +280,9 @@ $$('[data-back]').forEach((b) => b.addEventListener('click', () => showView('hub
 
 // ---------- Boot ----------
 $('#backend-flag').textContent = `BACKEND: ${BACKEND.toUpperCase()}`;
+
+// Pemain layar sentuh (HP/tablet): kasih tau DI DEPAN soal aturan leaderboard
+if (isTouchOnly()) { const tn = $('#touch-notice'); if (tn) tn.hidden = false; }
 
 // Data demo: ?demo=1 isi 5 pemain di semua station · ?demo=off hapus demo
 const demoFlag = qp('demo');

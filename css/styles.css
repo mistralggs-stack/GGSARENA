@@ -587,6 +587,16 @@ a{ color:var(--accent-ink); }
   background:rgba(232,64,31,0.10); border:1.5px solid var(--accent); border-radius:var(--radius);
   padding:12px 14px; text-align:center; color:var(--ink); margin-bottom:12px;
 }
+
+/* notice di depan buat pemain layar sentuh (HP/tablet) */
+.touch-notice{
+  margin-top:14px; padding:11px 14px;
+  border:1.5px solid var(--accent); border-radius:var(--radius);
+  background:rgba(232,64,31,0.08);
+  font-family:var(--font-mono); font-size:12px; line-height:1.65; letter-spacing:0.02em;
+  color:var(--ink);
+}
+.touch-notice b{ color:var(--accent-ink); }
 .mobile-gate{
   border:1.5px solid var(--accent);
   border-left-width:4px;

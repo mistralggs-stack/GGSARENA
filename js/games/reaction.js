@@ -177,11 +177,11 @@ export function createReactionGame(ctx) {
   function showNext() {
     const c = st.seq[st.seqIdx];
     paint(c.hex, c.fg);
+    sfx.go();   // bunyi SAMA buat semua warna — biar gak ada clue audio, murni baca warna
     if (c.key === st.target.key) {
       // TARGET muncul -> mulai ukur
       st.goAt = performance.now();
       setPad('go', c.name, 'SIKAT SEKARANG! ⚡');
-      sfx.go();
     } else {
       // warna jebakan -> jangan klik
       setPad('trap', c.name, `Bukan ${st.target.name} — TAHAN ✋`);

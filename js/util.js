@@ -70,7 +70,8 @@ export const MOBILE_BLOCK_MSG =
   'Sistem mendeteksi kamu main pakai layar sentuh 📱. Skor dari HP nggak bisa masuk leaderboard biar adil — buat ikut kompetisi, main pakai mouse & keyboard di komputer ya! 🖱️⌨️';
 
 /**
- * Atur popup pas mobile-run: tampilin notice, sembunyiin form + tombol simpan.
+ * Atur popup pas mobile-run: tampilin notice + tombol simpan disembunyiin.
+ * Form (nickname dkk) TETEP tampil — boleh diisi, cuma gak bisa submit.
  * sel = { gate, form, save } (CSS selector relatif ke root)
  */
 export function setSubmitGate(root, blocked, sel) {
@@ -78,7 +79,7 @@ export function setSubmitGate(root, blocked, sel) {
   const form = root.querySelector(sel.form);
   const save = root.querySelector(sel.save);
   if (gate) gate.hidden = !blocked;
-  if (form) form.style.display = blocked ? 'none' : '';
+  if (form) form.style.display = '';
   if (save) save.style.display = blocked ? 'none' : '';
 }
 

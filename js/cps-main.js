@@ -3,7 +3,7 @@
 // Mount game, leaderboard sendiri (game: 'cps'), mode embed.
 // ============================================================
 
-import { $, $$, esc, qp, postToParent } from './util.js';
+import { $, $$, esc, qp, postToParent, isTouchOnly } from './util.js';
 import { submitScore, getLeaderboard, getRank, onNewScore, BACKEND } from './store.js';
 import { createCpsGame } from './games/cps.js';
 
@@ -66,6 +66,7 @@ async function handleSubmit(entry) {
 }
 
 $('#backend-flag').textContent = `BACKEND: ${BACKEND.toUpperCase()}`;
+if (isTouchOnly()) { const tn = $('#touch-notice'); if (tn) tn.hidden = false; }
 createCpsGame({ mountEl: $('#mount-cps'), onSubmit: handleSubmit });
 renderBoard();
 onNewScore((row) => { if (row.game === 'cps') renderBoard(); });
