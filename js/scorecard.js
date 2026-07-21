@@ -6,9 +6,9 @@
 
 import { toast } from './util.js';
 
-// URL tujuan share — ganti ke URL arena pas udah deploy (Tahap 4)
-export const ARENA_URL = 'https://goodgamingshop.com';
-const ARENA_URL_LABEL = 'GOODGAMINGSHOP.COM';
+// URL tujuan share — pas arena udah di-embed di goodgamingshop.com, ganti ke URL halaman itu
+export const ARENA_URL = 'https://ggsarena.vercel.app';
+const ARENA_URL_LABEL = 'GGSARENA.VERCEL.APP';
 
 const W = 1080, H = 1920;
 const PAPER = '#ECEAE4', PAPER2 = '#E3E1DA', INK = '#16181D',
