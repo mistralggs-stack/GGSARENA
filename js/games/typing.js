@@ -83,11 +83,10 @@ export function createTypingGame(ctx) {
             <label class="field"><span>Switch (ops)</span><input id="typ-switch" maxlength="40" placeholder="Gateron Oil King"></label>
           </div>
           <div class="modal-actions">
+            <div class="ps-msg" id="typ-postsave" hidden></div>
             <button class="btn accent block" id="typ-save">✓ Simpan ke Leaderboard</button>
-            <div class="modal-actions-row">
-              <button class="btn ghost" id="typ-share">📸 Share ke IG</button>
-              <button class="btn ghost" id="typ-again">↻ Main Lagi</button>
-            </div>
+            <button class="btn accent block" id="typ-share" hidden>📸 Share ke IG — Tantangin Player Lain</button>
+            <button class="btn ghost block" id="typ-again">↻ Main Lagi</button>
           </div>
         </div>
       </div>
@@ -180,6 +179,9 @@ export function createTypingGame(ctx) {
 
     $('#typ-gate', root).textContent = MOBILE_BLOCK_MSG;
     setSubmitGate(root, mobileRun, { gate: '#typ-gate', form: '#typ-form', save: '#typ-save' });
+    // alur: simpan dulu -> baru tombol share muncul. (mobile: gak bisa simpan, share langsung boleh)
+    $('#typ-postsave', root).hidden = true;
+    $('#typ-share', root).hidden = !mobileRun;
     showResult();
     countUp($('#typ-hero-score', root), r.score);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
@@ -227,8 +229,16 @@ export function createTypingGame(ctx) {
       switches: cleanText($('#typ-switch', root).value, 40) || undefined,
     };
     const res = await ctx.onSubmit({ game: 'typing', score: last.score, player_name: name, detail });
-    if (res.ok) { toast(res.rank ? `Mantap! Lo peringkat #${res.rank} dari ${res.total} 🔥` : 'Skor kesimpen! Gacor 🔥'); hideResult(); last = null; }
-    else { toast(res.error || 'Gagal simpan skor.'); }
+    if (res.ok) {
+      const ps = $('#typ-postsave', root);
+      ps.textContent = res.rank
+        ? `✓ Skor masuk! Lo peringkat #${res.rank} dari ${res.total} 🔥 Pamerin & tantangin player lain 👇`
+        : '✓ Skor masuk leaderboard! 🔥 Pamerin & tantangin player lain 👇';
+      ps.hidden = false;
+      $('#typ-form', root).style.display = 'none';
+      $('#typ-save', root).style.display = 'none';
+      $('#typ-share', root).hidden = false;
+    } else { toast(res.error || 'Gagal simpan skor.'); }
   });
 
   $('#typ-share', root).addEventListener('click', async () => {

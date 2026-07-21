@@ -83,11 +83,10 @@ export function createReactionGame(ctx) {
             </label>
           </div>
           <div class="modal-actions">
+            <div class="ps-msg" id="rx-postsave" hidden></div>
             <button class="btn accent block" id="rx-save">✓ Simpan ke Leaderboard</button>
-            <div class="modal-actions-row">
-              <button class="btn ghost" id="rx-share">📸 Share ke IG</button>
-              <button class="btn ghost" id="rx-again">↻ Main Lagi</button>
-            </div>
+            <button class="btn accent block" id="rx-share" hidden>📸 Share ke IG — Tantangin Player Lain</button>
+            <button class="btn ghost block" id="rx-again">↻ Main Lagi</button>
           </div>
         </div>
       </div>
@@ -242,6 +241,9 @@ export function createReactionGame(ctx) {
 
     $('#rx-gate', root).textContent = MOBILE_BLOCK_MSG;
     setSubmitGate(root, mobileRun, { gate: '#rx-gate', form: '#rx-form', save: '#rx-save' });
+    // alur: simpan dulu -> baru tombol share muncul. (mobile: gak bisa simpan, share langsung boleh)
+    $('#rx-postsave', root).hidden = true;
+    $('#rx-share', root).hidden = !mobileRun;
     showResult();
     countUp($('#rx-hero-score', root), score);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
@@ -274,8 +276,16 @@ export function createReactionGame(ctx) {
       polling: parseInt($('#rx-poll', root).value, 10) || undefined,
     };
     const res = await ctx.onSubmit({ game: 'reaction', score: last.score, player_name: name, detail });
-    if (res.ok) { toast(res.rank ? `Mantap! Lo peringkat #${res.rank} dari ${res.total} ⚡` : 'Skor kesimpen! Refleks dewa ⚡'); hideResult(); last = null; }
-    else { toast(res.error || 'Gagal simpan skor.'); }
+    if (res.ok) {
+      const ps = $('#rx-postsave', root);
+      ps.textContent = res.rank
+        ? `✓ Skor masuk! Lo peringkat #${res.rank} dari ${res.total} ⚡ Pamerin & tantangin player lain 👇`
+        : '✓ Skor masuk leaderboard! ⚡ Pamerin & tantangin player lain 👇';
+      ps.hidden = false;
+      $('#rx-form', root).style.display = 'none';
+      $('#rx-save', root).style.display = 'none';
+      $('#rx-share', root).hidden = false;
+    } else { toast(res.error || 'Gagal simpan skor.'); }
   });
 
   $('#rx-share', root).addEventListener('click', async () => {

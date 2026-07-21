@@ -69,11 +69,10 @@ export function createCpsGame(ctx) {
             </label>
           </div>
           <div class="modal-actions">
+            <div class="ps-msg" id="cps-postsave" hidden></div>
             <button class="btn accent block" id="cps-save">✓ Simpan ke Leaderboard</button>
-            <div class="modal-actions-row">
-              <button class="btn ghost" id="cps-share">📸 Share ke IG</button>
-              <button class="btn ghost" id="cps-again">↻ Main Lagi</button>
-            </div>
+            <button class="btn accent block" id="cps-share" hidden>📸 Share ke IG — Tantangin Player Lain</button>
+            <button class="btn ghost block" id="cps-again">↻ Main Lagi</button>
           </div>
         </div>
       </div>
@@ -181,6 +180,9 @@ export function createCpsGame(ctx) {
 
     $('#cps-gate', root).textContent = MOBILE_BLOCK_MSG;
     setSubmitGate(root, mobileRun, { gate: '#cps-gate', form: '#cps-form', save: '#cps-save' });
+    // alur: simpan dulu -> baru tombol share muncul. (mobile: gak bisa simpan, share langsung boleh)
+    $('#cps-postsave', root).hidden = true;
+    $('#cps-share', root).hidden = !mobileRun;
     showResult();
     countUp($('#cps-hero-score', root), clicks);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
@@ -205,8 +207,16 @@ export function createCpsGame(ctx) {
       technique: cleanText($('#cps-tech', root).value, 20) || undefined,
     };
     const res = await ctx.onSubmit({ game: 'cps', score: last.score, player_name: name, detail });
-    if (res.ok) { toast(res.rank ? `Mantap! Lo peringkat #${res.rank} dari ${res.total} 🔥` : 'Skor kesimpen! 🔥'); hideResult(); last = null; }
-    else { toast(res.error || 'Gagal simpan skor.'); }
+    if (res.ok) {
+      const ps = $('#cps-postsave', root);
+      ps.textContent = res.rank
+        ? `✓ Skor masuk! Lo peringkat #${res.rank} dari ${res.total} 🔥 Pamerin & tantangin player lain 👇`
+        : '✓ Skor masuk leaderboard! 🔥 Pamerin & tantangin player lain 👇';
+      ps.hidden = false;
+      $('#cps-form', root).style.display = 'none';
+      $('#cps-save', root).style.display = 'none';
+      $('#cps-share', root).hidden = false;
+    } else { toast(res.error || 'Gagal simpan skor.'); }
   });
 
   $('#cps-share', root).addEventListener('click', async () => {

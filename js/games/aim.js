@@ -77,11 +77,10 @@ export function createAimGame(ctx) {
             </label>
           </div>
           <div class="modal-actions">
+            <div class="ps-msg" id="aim-postsave" hidden></div>
             <button class="btn accent block" id="aim-save">✓ Simpan ke Leaderboard</button>
-            <div class="modal-actions-row">
-              <button class="btn ghost" id="aim-share">📸 Share ke IG</button>
-              <button class="btn ghost" id="aim-again">↻ Main Lagi</button>
-            </div>
+            <button class="btn accent block" id="aim-share" hidden>📸 Share ke IG — Tantangin Player Lain</button>
+            <button class="btn ghost block" id="aim-again">↻ Main Lagi</button>
           </div>
         </div>
       </div>
@@ -231,6 +230,9 @@ export function createAimGame(ctx) {
 
     $('#aim-gate', root).textContent = MOBILE_BLOCK_MSG;
     setSubmitGate(root, mobileRun, { gate: '#aim-gate', form: '#aim-form', save: '#aim-save' });
+    // alur: simpan dulu -> baru tombol share muncul. (mobile: gak bisa simpan, share langsung boleh)
+    $('#aim-postsave', root).hidden = true;
+    $('#aim-share', root).hidden = !mobileRun;
     showResult();
     countUp($('#aim-hero-score', root), st.score);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
@@ -276,9 +278,15 @@ export function createAimGame(ctx) {
     };
     const res = await ctx.onSubmit({ game: 'aim', score: last.score, player_name: name, detail });
     if (res.ok) {
-      toast(res.rank ? `Mantap! Lo peringkat #${res.rank} dari ${res.total} 🔥` : 'Skor kesimpen! 🔥');
-      hideResult();
-      last = null;
+      // simpan sukses -> tetep kebuka: tunjukin peringkat + tombol share buat nantangin
+      const ps = $('#aim-postsave', root);
+      ps.textContent = res.rank
+        ? `✓ Skor masuk! Lo peringkat #${res.rank} dari ${res.total} 🔥 Pamerin & tantangin player lain 👇`
+        : '✓ Skor masuk leaderboard! 🔥 Pamerin & tantangin player lain 👇';
+      ps.hidden = false;
+      $('#aim-form', root).style.display = 'none';
+      $('#aim-save', root).style.display = 'none';
+      $('#aim-share', root).hidden = false;
     } else {
       toast(res.error || 'Gagal simpan skor.');
     }
