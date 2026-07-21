@@ -7,7 +7,7 @@
   <meta name="description" content="GGS Arena — adu reflek, aim & ketikan lo. Sikat leaderboard, gaskeun turnamen GoodGamingShop." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Archivo+Black&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body class="ticks">
@@ -89,9 +89,9 @@
     <!-- ===== MASTHEAD ===== -->
     <header class="masthead">
       <div class="brand">
-        <img class="brand-logo" src="assets/ggs-logo.svg" alt="GoodGamingShop" />
+        <img class="brand-logo" src="assets/ggs-logo-white.svg" alt="GoodGamingShop" />
         <div class="wordmark">
-          <b>GGS ARENA</b>
+          <b>GGS <span class="red" style="color:var(--accent-ink)">ARENA</span></b>
           <div class="tag micro">Performance Lab · Adu Skill · Sikat Leaderboard</div>
         </div>
       </div>
@@ -122,14 +122,28 @@
 
     <!-- ===== HUB VIEW ===== -->
     <section class="view active" id="view-hub" data-view="hub">
-      <p class="micro" style="margin:20px 0 0">FIG. 00 — PILIH STATION TES</p>
-      <h1 style="font-size:clamp(24px,5vw,34px);margin-top:6px;letter-spacing:-0.02em">
-        Bench test skill lo. Sikat leaderboard-nya. 🔥
-      </h1>
-      <p style="color:var(--ink-2);max-width:60ch;margin-top:8px">
-        Tiga station buat ngukur reflek, aim, sama kecepatan ngetik lo. Submit skor,
-        naik leaderboard, gaskeun turnamen GGS tiap bulan. Semua ke-track ala lab performa.
-      </p>
+      <div class="hero-wrap" style="margin-top:20px">
+        <div>
+          <p class="micro">FIG. 00 — PILIH STATION TES</p>
+          <h1 style="margin-top:8px">
+            Bench test skill lo. <span class="l2">Sikat leaderboard-nya. 🔥</span>
+          </h1>
+          <p style="color:var(--ink-2);max-width:56ch;margin-top:12px">
+            Empat station buat ngukur reflek, aim, klik, sama kecepatan ngetik lo.
+            Submit skor, naik leaderboard, gaskeun turnamen GGS tiap bulan.
+            Semua ke-track ala lab performa.
+          </p>
+        </div>
+        <div class="hero-art">
+          <div class="month-top">
+            <div class="mt-hd">
+              <span class="label">Leaderboard Bulan Ini</span>
+              <a data-open="board">LIHAT SEMUA ↗</a>
+            </div>
+            <div id="month-top"><div class="mt-empty">Belum ada skor bulan ini — jadi yang pertama 🔥</div></div>
+          </div>
+        </div>
+      </div>
 
       <div class="stations" id="stations">
         <div class="station-col">
@@ -294,10 +308,17 @@
       <div class="board-grid" id="board-grid"></div>
     </section>
 
+    <div class="tape">
+      <div class="tp"><span class="ic">🏆</span><div><b>Turnamen GGS</b><span>Setiap Bulan</span></div></div>
+      <div class="tp"><span class="ic">⚡</span><div><b>Gear Lo, Skill Lo</b><span>Buktiin di Arena</span></div></div>
+      <div class="tp"><span class="ic">🎯</span><div><b>No Luck. Just Skill.</b><span>Sikat &amp; Jadi Legend!</span></div></div>
+      <img src="assets/ggs-logo-white.svg" alt="GGS" />
+    </div>
+
     <footer class="foot">
       <div class="foot-main">
         <div class="foot-col foot-brand">
-          <img class="foot-logo" src="assets/ggs-logo.svg" alt="GoodGamingShop" />
+          <img class="foot-logo" src="assets/ggs-logo-white.svg" alt="GoodGamingShop" />
           <p class="foot-blurb">Arena kompetisi mini-games GoodGamingShop. Adu reflek, aim & ketikan — sikat leaderboard, gaskeun turnamen tiap bulan.</p>
           <div class="foot-social">
             <a href="https://discord.gg/goodgamingshop" target="_blank" rel="noopener" aria-label="Discord"><svg class="ico-soc"><use href="#ico-discord"/></svg></a>

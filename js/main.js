@@ -226,6 +226,26 @@ $$('#board-scope button').forEach((b) => b.addEventListener('click', () => {
   renderBoardView();
 }));
 
+// ---------- Panel hero: top 5 skor bulan ini (gabungan semua game) ----------
+async function renderMonthTop() {
+  const box = $('#month-top');
+  if (!box) return;
+  const month = currentMonth();
+  const per = await Promise.all(Object.keys(GAME_META).map((g) => getLeaderboard({ game: g, month, limit: 5 })));
+  const rows = per.flat().sort((a, b) => b.score - a.score).slice(0, 5);
+  if (!rows.length) {
+    box.innerHTML = '<div class="mt-empty">Belum ada skor bulan ini — jadi yang pertama 🔥</div>';
+    return;
+  }
+  box.innerHTML = rows.map((r, i) => `
+    <div class="mt-row ${i === 0 ? 'first' : ''}">
+      <span class="no">${i + 1}</span>
+      <span class="md">${i < 3 ? MEDALS[i] : '·'}</span>
+      <span class="nm">${esc(r.player_name)}</span>
+      <span class="sc">${esc(r.score)}</span>
+    </div>`).join('');
+}
+
 // ---------- Submit handler (dishare ke semua game) ----------
 async function handleSubmit(entry) {
   entry.event_id = window.__ggsActiveEventId || null;
@@ -234,6 +254,7 @@ async function handleSubmit(entry) {
     postToParent({ game: entry.game, payload: res.row });
     renderBoard(entry.game);
     renderHubBoard(entry.game);
+    renderMonthTop();
     // posisi lo #X dari Y (all-time)
     try {
       const { rank, total } = await getRank({ game: entry.game, score: res.row.score });
@@ -295,6 +316,7 @@ if (demoFlag === '1') {
 
 renderSponsors();
 renderAllHubBoards();
+renderMonthTop();
 
 // ---------- Footer: mute toggle ----------
 const muteBtn = $('#mute-toggle');
@@ -308,6 +330,7 @@ if (muteBtn) {
 onNewScore((row) => {
   renderHubBoard(row.game);
   renderBoard(row.game);
+  renderMonthTop();
   if (currentView === 'board') renderBoardView();
 });
 
