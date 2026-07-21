@@ -65,7 +65,7 @@ export function createAimGame(ctx) {
           <div class="form-grid" id="aim-form">
             <label class="field"><span>Nickname</span><input id="aim-name" maxlength="18" placeholder="nickname lo"></label>
             <label class="field"><span>Discord (ops)</span><input id="aim-discord" maxlength="32" placeholder="@discord"></label>
-            <label class="field"><span>Mouse (ops)</span><input id="aim-mouse" maxlength="40" placeholder="Lamzu Atlantis"></label>
+            <label class="field"><span>Mouse (ops)</span><input id="aim-mouse" maxlength="40" placeholder="Razer Deathadder V4"></label>
             <label class="field"><span>Mousepad (ops)</span><input id="aim-pad" maxlength="40" placeholder="Artisan Zero"></label>
             <label class="field"><span>Mouse Glide (ops)</span><input id="aim-glide" maxlength="40" placeholder="Superglide Glass"></label>
             <label class="field"><span>DPI (ops)</span><input id="aim-dpi" type="number" min="100" max="32000" step="50" placeholder="1600"></label>

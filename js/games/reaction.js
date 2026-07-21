@@ -77,7 +77,7 @@ export function createReactionGame(ctx) {
           <div class="form-grid" id="rx-form">
             <label class="field"><span>Nickname</span><input id="rx-name" maxlength="18" placeholder="nickname lo"></label>
             <label class="field"><span>Discord (ops)</span><input id="rx-discord" maxlength="32" placeholder="@discord"></label>
-            <label class="field"><span>Mouse (ops)</span><input id="rx-mouse" maxlength="40" placeholder="Lamzu Atlantis"></label>
+            <label class="field"><span>Mouse (ops)</span><input id="rx-mouse" maxlength="40" placeholder="Razer Deathadder V4"></label>
             <label class="field"><span>Polling Hz (ops)</span>
               <select id="rx-poll"><option value="">—</option><option>125</option><option>500</option><option selected>1000</option><option>2000</option><option>4000</option><option>8000</option></select>
             </label>

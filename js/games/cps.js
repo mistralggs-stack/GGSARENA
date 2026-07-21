@@ -59,7 +59,7 @@ export function createCpsGame(ctx) {
           <div class="form-grid" id="cps-form">
             <label class="field"><span>Nickname</span><input id="cps-name" maxlength="18" placeholder="nickname lo"></label>
             <label class="field"><span>Discord (ops)</span><input id="cps-discord" maxlength="32" placeholder="@discord"></label>
-            <label class="field"><span>Mouse (ops)</span><input id="cps-mouse" maxlength="40" placeholder="Lamzu Atlantis"></label>
+            <label class="field"><span>Mouse (ops)</span><input id="cps-mouse" maxlength="40" placeholder="Razer Deathadder V4"></label>
             <label class="field"><span>Switch Mouse (ops)</span><input id="cps-switch" maxlength="40" placeholder="Huano Blue Shell"></label>
             <label class="field"><span>Polling Hz (ops)</span>
               <select id="cps-poll"><option value="">—</option><option>125</option><option>500</option><option selected>1000</option><option>2000</option><option>4000</option><option>8000</option></select>
