@@ -115,6 +115,12 @@ export function createTypingGame(ctx) {
       else html += `<span>${ch}</span>`;
     }
     elText.innerHTML = html;
+    // auto-scroll: caret selalu keliatan (teks panjang gak perlu scroll manual)
+    const cur = elText.querySelector('.cur');
+    if (cur) {
+      const target = Math.max(0, cur.offsetTop - elText.clientHeight / 2);
+      if (Math.abs(elText.scrollTop - target) > 10) elText.scrollTop = target;
+    }
   }
 
   function recompute() {
@@ -134,7 +140,7 @@ export function createTypingGame(ctx) {
 
   function start() {
     if (st && st.running) return;
-    st = { running: true, time: DURATION, text: buildText(), idx: 0, correct: 0, wrong: 0, wrongSet: new Set(), tick: null };
+    st = { running: true, time: DURATION, text: buildText(), idx: 0, correct: 0, wrong: 0, wrongSet: new Set(), prevVal: '', tick: null };
     hideResult();
     elWpm.textContent = '0'; elAcc.textContent = '100%'; elScore.textContent = '0'; elTime.textContent = DURATION.toFixed(1);
     render();
@@ -189,28 +195,33 @@ export function createTypingGame(ctx) {
     $('#typ-name', root).focus();
   }
 
-  elInput.addEventListener('keydown', (e) => {
+  // Input via event 'input' + algoritma delta — jalan di desktop DAN keyboard HP
+  // (Gboard dkk pakai composition/IME, event keydown-nya nggak normal).
+  function processChar(ch) {
+    if (st.text[st.idx] === ch) { st.correct++; }
+    else { st.wrong++; st.wrongSet.add(st.idx); }
+    st.idx++;
+    // isi ulang duluan sebelum teks menipis -> gak pernah abis selama 1 menit
+    if (st.text.length - st.idx < REFILL_AT) { st.text += ' ' + buildText(300); }
+  }
+  function processBackspace() {
+    if (st.idx > 0) {
+      st.idx--;
+      if (st.wrongSet.has(st.idx)) { st.wrongSet.delete(st.idx); st.wrong--; }
+      else { st.correct--; }
+    }
+  }
+  elInput.addEventListener('input', () => {
     if (!st || !st.running) return;
-    const text = st.text;
-    if (e.key === 'Backspace') {
-      e.preventDefault();
-      if (st.idx > 0) {
-        st.idx--;
-        if (st.wrongSet.has(st.idx)) { st.wrongSet.delete(st.idx); st.wrong--; }
-        else { st.correct--; }
-      }
-      render(); recompute();
-      return;
-    }
-    if (e.key.length === 1) {
-      e.preventDefault();
-      if (text[st.idx] === e.key) { st.correct++; }
-      else { st.wrong++; st.wrongSet.add(st.idx); }
-      st.idx++;
-      // isi ulang duluan sebelum teks menipis -> gak pernah abis selama 1 menit
-      if (st.text.length - st.idx < REFILL_AT) { st.text += ' ' + buildText(300); }
-      render(); recompute();
-    }
+    const v = elInput.value;
+    const prev = st.prevVal || '';
+    // cari prefix yang sama -> sisanya delta (tahan autocorrect/composition HP)
+    let i = 0;
+    while (i < v.length && i < prev.length && v[i] === prev[i]) i++;
+    for (let k = 0; k < prev.length - i; k++) processBackspace();
+    for (const ch of v.slice(i)) processChar(ch);
+    st.prevVal = v;
+    render(); recompute();
   });
 
   btnStart.addEventListener('click', () => start());
