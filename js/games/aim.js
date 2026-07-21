@@ -7,6 +7,7 @@
 import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
+import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
 
 const DURATION = 30;         // detik
 const SIZE_MAX = 56, SIZE_MIN = 24;
@@ -78,7 +79,7 @@ export function createAimGame(ctx) {
           <div class="modal-actions">
             <button class="btn accent block" id="aim-save">✓ Simpan ke Leaderboard</button>
             <div class="modal-actions-row">
-              <button class="btn ghost" id="aim-share">📤 Bagikan</button>
+              <button class="btn ghost" id="aim-share">📸 Share ke IG</button>
               <button class="btn ghost" id="aim-again">↻ Main Lagi</button>
             </div>
           </div>
@@ -283,10 +284,20 @@ export function createAimGame(ctx) {
     }
   });
 
-  $('#aim-share', root).addEventListener('click', () => {
+  $('#aim-share', root).addEventListener('click', async () => {
     if (!last) return;
-    shareScore({ gameLabel: 'Aim Trainer', score: last.score, line: `${last.detail.accuracy}% akurasi · x${last.detail.max_combo} combo` })
-      .then((r) => { if (r === 'fallback') toast('Teks tantangan ke-copy — paste ke temen lo! 📤'); });
+    const result = await shareScoreCard({
+      gameLabel: 'Aim Trainer', station: 'STATION 01', unit: 'PTS',
+      score: last.score,
+      player: cleanText($('#aim-name', root).value, 18) || 'ANON',
+      metrics: [
+        { v: `${last.detail.accuracy}%`, l: 'Akurasi' },
+        { v: `x${last.detail.max_combo}`, l: 'Max Combo' },
+        { v: `${last.detail.hits}/${last.detail.miss}`, l: 'Hit/Miss' },
+      ],
+      tag: $('#aim-hero-tag', root).textContent,
+    });
+    shareOutcomeToast(result);
   });
 
   $('#aim-close', root).addEventListener('click', hideResult);

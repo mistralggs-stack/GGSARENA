@@ -8,6 +8,7 @@
 import { $, esc, clamp, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
+import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
 
 const DURATION = 10;   // detik
 
@@ -70,7 +71,7 @@ export function createCpsGame(ctx) {
           <div class="modal-actions">
             <button class="btn accent block" id="cps-save">✓ Simpan ke Leaderboard</button>
             <div class="modal-actions-row">
-              <button class="btn ghost" id="cps-share">📤 Bagikan</button>
+              <button class="btn ghost" id="cps-share">📸 Share ke IG</button>
               <button class="btn ghost" id="cps-again">↻ Main Lagi</button>
             </div>
           </div>
@@ -208,10 +209,20 @@ export function createCpsGame(ctx) {
     else { toast(res.error || 'Gagal simpan skor.'); }
   });
 
-  $('#cps-share', root).addEventListener('click', () => {
+  $('#cps-share', root).addEventListener('click', async () => {
     if (!last) return;
-    shareScore({ gameLabel: 'CPS Test', score: last.score, line: `${last.detail.cps} CPS · best ${last.detail.peak_sec}/dtk` })
-      .then((r) => { if (r === 'fallback') toast('Teks tantangan ke-copy — paste ke temen lo! 📤'); });
+    const result = await shareScoreCard({
+      gameLabel: 'CPS Test', station: 'STATION 04', unit: 'KLIK / 10 DTK',
+      score: last.score,
+      player: cleanText($('#cps-name', root).value, 18) || 'ANON',
+      metrics: [
+        { v: last.detail.cps.toFixed(1), l: 'CPS Rata²' },
+        { v: last.detail.peak_sec, l: 'Best Detik' },
+        { v: `${last.detail.consistency}%`, l: 'Konsistensi' },
+      ],
+      tag: $('#cps-hero-tag', root).textContent,
+    });
+    shareOutcomeToast(result);
   });
 
   $('#cps-close', root).addEventListener('click', hideResult);

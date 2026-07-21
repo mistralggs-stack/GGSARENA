@@ -9,6 +9,7 @@
 import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
+import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
 
 const ROUNDS = 5;
 const WAIT_MIN = 900,  WAIT_MAX = 2200;   // jeda sebelum warna pertama muncul
@@ -84,7 +85,7 @@ export function createReactionGame(ctx) {
           <div class="modal-actions">
             <button class="btn accent block" id="rx-save">✓ Simpan ke Leaderboard</button>
             <div class="modal-actions-row">
-              <button class="btn ghost" id="rx-share">📤 Bagikan</button>
+              <button class="btn ghost" id="rx-share">📸 Share ke IG</button>
               <button class="btn ghost" id="rx-again">↻ Main Lagi</button>
             </div>
           </div>
@@ -277,10 +278,20 @@ export function createReactionGame(ctx) {
     else { toast(res.error || 'Gagal simpan skor.'); }
   });
 
-  $('#rx-share', root).addEventListener('click', () => {
+  $('#rx-share', root).addEventListener('click', async () => {
     if (!last) return;
-    shareScore({ gameLabel: 'Reaction Time', score: last.score, line: `${last.detail.avg_ms}ms rata²` })
-      .then((r) => { if (r === 'fallback') toast('Teks tantangan ke-copy — paste ke temen lo! 📤'); });
+    const result = await shareScoreCard({
+      gameLabel: 'Reaction Time', station: 'STATION 03', unit: 'POIN REFLEKS',
+      score: last.score,
+      player: cleanText($('#rx-name', root).value, 18) || 'ANON',
+      metrics: [
+        { v: `${last.detail.avg_ms}ms`, l: 'Rata²' },
+        { v: `${last.detail.best_ms}ms`, l: 'Terbaik' },
+        { v: last.detail.errors, l: 'Salah' },
+      ],
+      tag: $('#rx-hero-tag', root).textContent,
+    });
+    shareOutcomeToast(result);
   });
 
   $('#rx-close', root).addEventListener('click', hideResult);

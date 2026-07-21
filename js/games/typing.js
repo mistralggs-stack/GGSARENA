@@ -8,6 +8,7 @@
 import { $, esc, cleanText, toast, shareScore, wireFullscreen, isTouchOnly, MOBILE_BLOCK_MSG, setSubmitGate } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
+import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
 
 const DURATION = 60;          // 1 menit
 const REFILL_AT = 90;         // sisa char < ini -> tambah teks baru (biar gak abis)
@@ -84,7 +85,7 @@ export function createTypingGame(ctx) {
           <div class="modal-actions">
             <button class="btn accent block" id="typ-save">✓ Simpan ke Leaderboard</button>
             <div class="modal-actions-row">
-              <button class="btn ghost" id="typ-share">📤 Bagikan</button>
+              <button class="btn ghost" id="typ-share">📸 Share ke IG</button>
               <button class="btn ghost" id="typ-again">↻ Main Lagi</button>
             </div>
           </div>
@@ -230,10 +231,20 @@ export function createTypingGame(ctx) {
     else { toast(res.error || 'Gagal simpan skor.'); }
   });
 
-  $('#typ-share', root).addEventListener('click', () => {
+  $('#typ-share', root).addEventListener('click', async () => {
     if (!last) return;
-    shareScore({ gameLabel: 'Typing Test', score: last.score, line: `${last.detail.wpm} WPM · ${last.detail.accuracy}%` })
-      .then((r) => { if (r === 'fallback') toast('Teks tantangan ke-copy — paste ke temen lo! 📤'); });
+    const result = await shareScoreCard({
+      gameLabel: 'Typing Test', station: 'STATION 02', unit: 'PTS',
+      score: last.score,
+      player: cleanText($('#typ-name', root).value, 18) || 'ANON',
+      metrics: [
+        { v: last.detail.wpm, l: 'WPM' },
+        { v: last.detail.cps.toFixed(1), l: 'Char/Dtk' },
+        { v: `${last.detail.accuracy}%`, l: 'Akurasi' },
+      ],
+      tag: $('#typ-hero-tag', root).textContent,
+    });
+    shareOutcomeToast(result);
   });
 
   $('#typ-close', root).addEventListener('click', hideResult);
