@@ -194,6 +194,38 @@ async function renderBoard(game) {
   board.innerHTML = rows.map((r, i) => lbRowHTML(game, r, i)).join('');
 }
 
+// ---------- Leaderboard semua station (view "board") ----------
+const BOARD_ICONS = { aim: '#ico-aim', typing: '#ico-typing', reaction: '#ico-reaction', cps: '#ico-cps' };
+let boardScope = 'all';
+async function renderBoardView() {
+  const grid = $('#board-grid');
+  if (!grid) return;
+  const month = boardScope === 'month' ? currentMonth() : null;
+  const panels = await Promise.all(Object.keys(GAME_META).map(async (game) => {
+    const rows = await getLeaderboard({ game, eventId: null, month, limit: 50 });
+    const body = rows.length
+      ? rows.map((r, i) => lbRowHTML(game, r, i)).join('')
+      : `<div class="lb-empty">${month ? 'Belum ada skor bulan ini.' : 'Belum ada skor.'} Sikat! 🔥</div>`;
+    return `
+      <div class="panel">
+        <div class="panel-hd">
+          <h3><svg class="ico-xs"><use href="${BOARD_ICONS[game]}"/></svg>${esc(GAME_META[game].label)}</h3>
+          <span class="micro">${rows.length ? rows.length + ' SKOR' : ''}</span>
+        </div>
+        <div class="panel-bd" style="padding:8px 12px">
+          <div class="lb board-lb">${body}</div>
+        </div>
+      </div>`;
+  }));
+  grid.innerHTML = panels.join('');
+}
+$$('#board-scope button').forEach((b) => b.addEventListener('click', () => {
+  $$('#board-scope button').forEach((x) => x.classList.remove('active'));
+  b.classList.add('active');
+  boardScope = b.dataset.s;
+  renderBoardView();
+}));
+
 // ---------- Submit handler (dishare ke semua game) ----------
 async function handleSubmit(entry) {
   entry.event_id = window.__ggsActiveEventId || null;
@@ -219,13 +251,16 @@ function showView(name) {
   $$('.view').forEach((v) => v.classList.toggle('active', v.dataset.view === name));
   currentView = name;
 
-  if (name !== 'hub') {
+  if (GAME_META[name]) {
     if (!instances[name]) {
       const mount = document.getElementById('mount-' + name);
       instances[name] = GAME_META[name].factory({ mountEl: mount, onSubmit: handleSubmit });
     }
     instances[name].activate();
     renderBoard(name);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else if (name === 'board') {
+    renderBoardView();      // leaderboard semua station
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } else {
     renderAllHubBoards();   // refresh papan pas balik ke hub
@@ -267,4 +302,4 @@ if (muteBtn) {
 }
 
 const initial = (location.hash || '').replace('#', '');
-showView(GAME_META[initial] ? initial : 'hub');
+showView(GAME_META[initial] || initial === 'board' ? initial : 'hub');
