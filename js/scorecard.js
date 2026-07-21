@@ -6,6 +6,10 @@
 
 import { toast } from './util.js';
 
+// URL tujuan share — ganti ke URL arena pas udah deploy (Tahap 4)
+export const ARENA_URL = 'https://goodgamingshop.com';
+const ARENA_URL_LABEL = 'GOODGAMINGSHOP.COM';
+
 const W = 1080, H = 1920;
 const PAPER = '#ECEAE4', PAPER2 = '#E3E1DA', INK = '#16181D',
       INK2 = '#3A3D45', INK3 = '#6E7178', ACCENT = '#E8401F';
@@ -117,12 +121,14 @@ export async function buildScoreCard(opts) {
     cx.fillText(m.l.toUpperCase(), mx, py + 160);
   });
 
-  // ---- CTA tantangan (blok ink)
-  const by = 1610, bh = 150;
+  // ---- CTA tantangan + link main (blok ink)
+  const by = 1580, bh = 200;
   cx.fillStyle = INK; cx.fillRect(80, by, W - 160, bh);
   cx.fillStyle = ACCENT; cx.fillRect(80, by, 14, bh);
   cx.fillStyle = PAPER; cx.font = '700 52px "Space Grotesk", sans-serif';
-  cx.fillText('Kalahin gw kalo bisa 🔥', cxr, by + 92);
+  cx.fillText('Kalahin gw kalo bisa 🔥', cxr, by + 82);
+  cx.fillStyle = ACCENT; cx.font = '700 36px "JetBrains Mono", monospace';
+  cx.fillText(`▶ MAIN DI: ${ARENA_URL_LABEL}`, cxr, by + 152);
 
   // ---- footer
   const now = new Date();
@@ -143,11 +149,15 @@ export async function buildScoreCard(opts) {
 export async function shareScoreCard(opts) {
   const { blob } = await buildScoreCard(opts);
   const file = new File([blob], `ggs-arena-${opts.gameLabel.toLowerCase().replace(/\s+/g, '-')}-${opts.score}.png`, { type: 'image/png' });
-  const text = `${opts.player} — ${opts.score} ${opts.unit} di ${opts.gameLabel}, GGS Arena 🔥 Kalahin kalo bisa!`;
+  const text = `${opts.player} — ${opts.score} ${opts.unit} di ${opts.gameLabel}, GGS Arena 🔥 Kalahin kalo bisa! Main di: ${ARENA_URL}`;
+
+  // Selalu copy caption+link — IG gak nerima link otomatis, jadi player tinggal
+  // paste (stiker LINK di Story). WA/Telegram dapet link langsung dari share sheet.
+  try { await navigator.clipboard.writeText(text); } catch { /* no-op */ }
 
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: 'GGS Arena', text });
+      await navigator.share({ files: [file], title: 'GGS Arena', text, url: ARENA_URL });
       return 'shared';
     } catch (e) {
       if (e && e.name === 'AbortError') return 'cancel';
@@ -162,8 +172,11 @@ export async function shareScoreCard(opts) {
   return 'downloaded';
 }
 
-/** Toast standar habis share (mekanik hadiah) */
+/** Toast standar habis share (mekanik hadiah + cara naro link) */
 export function shareOutcomeToast(result) {
-  if (result === 'shared') toast('Post ke IG Story + tag @goodgamingshop buat klaim hadiah 🎁');
-  else if (result === 'downloaded') toast('Kartu ke-download! Upload ke IG Story + tag @goodgamingshop 🎁');
+  if (result === 'shared') {
+    toast('Link udah ke-copy 📋 Di IG Story: tempel pakai stiker LINK + tag @goodgamingshop buat klaim hadiah 🎁', 5000);
+  } else if (result === 'downloaded') {
+    toast('Kartu ke-download & link ke-copy 📋 Upload ke Story, tempel stiker LINK + tag @goodgamingshop 🎁', 5000);
+  }
 }
