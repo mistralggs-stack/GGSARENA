@@ -1,53 +1,99 @@
 // ============================================================
-// GGS ARENA — data store
+// GGS ARENA — data store (dual backend)
 // ------------------------------------------------------------
-// Tahap 1: backend lokal (localStorage).
-// API-nya sengaja dibikin async + bentuknya persis skema Supabase
-// (scores: id, player_name, game, score, detail jsonb, event_id, created_at)
-// biar Tahap 2 tinggal ganti implementasi backend tanpa ubah UI.
+// SUPABASE (config keisi): leaderboard shared realtime semua pemain.
+//   - Baca: langsung ke Postgres (RLS: public read-only)
+//   - Tulis: HANYA lewat Edge Function submit-score (anti-cheat)
+// LOCAL (config placeholder): localStorage per-device — buat dev/demo.
+// API-nya sama persis, UI nggak perlu tau bedanya.
 // ============================================================
 
-const LS_KEY = 'ggs_arena_scores_v1';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 
-/** Batas skor wajar per game (anti-cheat dasar — dipakai lagi server-side di Tahap 2) */
+const SB_ACTIVE =
+  /^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(SUPABASE_URL || '') &&
+  (SUPABASE_ANON_KEY || '').length > 40;
+
+export const BACKEND = SB_ACTIVE ? 'supabase' : 'local';
+
+/** Batas skor wajar per game (divalidasi ULANG server-side di Edge Function) */
 export const SCORE_LIMITS = {
-  aim:      { min: 0, max: 20000 },   // hits*combo dalam 30s realistis < ~beberapa ribu
-  typing:   { min: 0, max: 400 },     // WPM x akurasi
-  reaction: { min: 0, max: 1000 },    // skor = poin refleks (makin tinggi makin bagus)
-  cps:      { min: 0, max: 300 },     // total klik 10 detik (30 cps = batas ekstrem drag-click)
+  aim:      { min: 0, max: 20000 },
+  typing:   { min: 0, max: 400 },
+  reaction: { min: 0, max: 1000 },
+  cps:      { min: 0, max: 300 },
 };
 
+// ---------- Supabase client (lazy — cuma ke-load kalau aktif) ----------
+let _sb = null;
+async function sb() {
+  if (!_sb) {
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    _sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return _sb;
+}
+
+// ---------- LOCAL backend (localStorage) ----------
+const LS_KEY = 'ggs_arena_scores_v1';
 function readAll() {
   try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); }
   catch { return []; }
 }
-function writeAll(rows) {
-  localStorage.setItem(LS_KEY, JSON.stringify(rows));
+function writeAll(rows) { localStorage.setItem(LS_KEY, JSON.stringify(rows)); }
+function uid() { return 'loc_' + Math.random().toString(36).slice(2, 10); }
+
+function monthRange(month) {
+  const [y, m] = month.split('-').map(Number);
+  const next = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+  return { start: `${month}-01T00:00:00.000Z`, end: `${next}-01T00:00:00.000Z` };
 }
 
-/** id sederhana tanpa Date.now bergantung (cukup untuk lokal) */
-function uid() {
-  return 'loc_' + Math.random().toString(36).slice(2, 10);
-}
-
+// ---------- submitScore ----------
 /**
- * Submit satu skor.
- * entry: { player_name, game, score, detail, event_id? }
+ * entry: { player_name, game, score, detail, run_id, event_id? }
  * return: { ok, error?, row? }
  */
 export async function submitScore(entry) {
   const game = entry.game;
   const limit = SCORE_LIMITS[game];
   const score = Number(entry.score);
+  const name = String(entry.player_name || '').trim();
 
-  // Validasi client-side (di Tahap 2 divalidasi ulang di Edge Function)
+  // validasi client-side (server tetap validasi ulang)
   if (!limit) return { ok: false, error: 'Game tidak dikenal.' };
   if (!Number.isFinite(score) || score < limit.min || score > limit.max) {
     return { ok: false, error: 'Skor di luar batas wajar, ketolak.' };
   }
-  const name = String(entry.player_name || '').trim();
   if (name.length < 2) return { ok: false, error: 'Nickname minimal 2 huruf.' };
 
+  if (SB_ACTIVE) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-score`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          player_name: name.slice(0, 18),
+          game,
+          score,
+          detail: entry.detail || {},
+          run_id: entry.run_id,
+          event_id: entry.event_id || null,
+        }),
+      });
+      const body = await res.json().catch(() => null);
+      if (body && typeof body.ok === 'boolean') return body;
+      return { ok: false, error: 'Server lagi bermasalah, coba lagi.' };
+    } catch {
+      return { ok: false, error: 'Gagal konek server. Cek internet lo.' };
+    }
+  }
+
+  // LOCAL
   const row = {
     id: uid(),
     player_name: name.slice(0, 18),
@@ -57,38 +103,89 @@ export async function submitScore(entry) {
     event_id: entry.event_id || null,
     created_at: new Date().toISOString(),
   };
-
   const rows = readAll();
   rows.push(row);
   writeAll(rows);
   return { ok: true, row };
 }
 
-/**
- * Ambil leaderboard.
- * opts: { game, eventId (null = all-time), limit }
- * Diurutkan skor tertinggi. Reaction: skor = poin (tinggi = bagus), jadi sama.
- */
+// ---------- getLeaderboard ----------
 export async function getLeaderboard({ game, eventId = null, month = null, limit = 50 } = {}) {
+  if (SB_ACTIVE) {
+    try {
+      const client = await sb();
+      let q = client.from('scores').select('*')
+        .eq('game', game)
+        .order('score', { ascending: false })
+        .order('created_at', { ascending: true })
+        .limit(limit);
+      if (eventId !== null) q = q.eq('event_id', eventId);
+      if (month) {
+        const { start, end } = monthRange(month);
+        q = q.gte('created_at', start).lt('created_at', end);
+      }
+      const { data, error } = await q;
+      return error ? [] : (data || []);
+    } catch { return []; }
+  }
+
   let rows = readAll();
   if (game) rows = rows.filter((r) => r.game === game);
   if (eventId !== null) rows = rows.filter((r) => r.event_id === eventId);
-  // month = 'YYYY-MM' -> recap bulanan (buat challenge/juara bulan ini)
   if (month) rows = rows.filter((r) => String(r.created_at).slice(0, 7) === month);
   rows.sort((a, b) => b.score - a.score || new Date(a.created_at) - new Date(b.created_at));
   return rows.slice(0, limit);
 }
 
-/** Hapus semua (dev/testing lokal) */
+// ---------- getRank (posisi lo #X dari Y) ----------
+export async function getRank({ game, score, eventId = null, month = null }) {
+  if (SB_ACTIVE) {
+    const client = await sb();
+    const base = () => {
+      let q = client.from('scores').select('id', { count: 'exact', head: true }).eq('game', game);
+      if (eventId !== null) q = q.eq('event_id', eventId);
+      if (month) { const { start, end } = monthRange(month); q = q.gte('created_at', start).lt('created_at', end); }
+      return q;
+    };
+    const { count: total } = await base();
+    const { count: higher } = await base().gt('score', score);
+    return { rank: (higher ?? 0) + 1, total: total ?? 0 };
+  }
+  const rows = await getLeaderboard({ game, eventId, month, limit: 100000 });
+  return { rank: rows.filter((r) => r.score > score).length + 1, total: rows.length };
+}
+
+// ---------- Realtime (skor baru masuk -> callback) ----------
+export async function onNewScore(cb) {
+  if (!SB_ACTIVE) return;   // local: nggak ada realtime antar device
+  try {
+    const client = await sb();
+    client.channel('scores-feed')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'scores' }, (payload) => {
+        try { cb(payload.new); } catch { /* no-op */ }
+      })
+      .subscribe();
+  } catch { /* no-op */ }
+}
+
+// ---------- Personal Best (selalu lokal per-device) ----------
+export function getPB(game) { return Number(localStorage.getItem('ggs_pb_' + game) || 0); }
+export function setPB(game, score) { localStorage.setItem('ggs_pb_' + game, String(score)); }
+export function checkRecord(game, score) {
+  const prev = getPB(game);
+  const isRecord = score > prev;
+  if (isRecord) setPB(game, score);
+  return { isRecord, prev, meaningful: isRecord && prev > 0 };
+}
+
+// ---------- Demo & util (khusus mode LOCAL — jangan kotori DB shared) ----------
 export async function clearAll() {
+  if (SB_ACTIVE) return;
   localStorage.removeItem(LS_KEY);
 }
 
-/**
- * Seed data demo (idempotent — baris demo lama dihapus dulu, jadi gak dobel).
- * rows: array { player_name, game, score, detail }
- */
 export async function seedDemo(rows) {
+  if (SB_ACTIVE) return;   // demo cuma buat localStorage
   const now = Date.now();
   const kept = readAll().filter((r) => !String(r.id || '').startsWith('demo_'));
   rows.forEach((r, i) => {
@@ -99,40 +196,13 @@ export async function seedDemo(rows) {
       score: r.score,
       detail: r.detail || {},
       event_id: null,
-      // stagger created_at biar urutan tie-break stabil
       created_at: new Date(now - (rows.length - i) * 60000).toISOString(),
     });
   });
   writeAll(kept);
 }
 
-/** Hapus hanya baris demo (skor asli tetap aman) */
 export async function clearDemo() {
+  if (SB_ACTIVE) return;
   writeAll(readAll().filter((r) => !String(r.id || '').startsWith('demo_')));
 }
-
-// ---------- Personal Best (rekor pribadi, per perangkat) ----------
-export function getPB(game) { return Number(localStorage.getItem('ggs_pb_' + game) || 0); }
-export function setPB(game, score) { localStorage.setItem('ggs_pb_' + game, String(score)); }
-/**
- * Cek rekor pribadi (per perangkat). Return { isRecord, prev, meaningful }.
- * meaningful = true CUMA kalau ngelewatin skor lama yg > 0 (main pertama gak dihitung "rekor").
- */
-export function checkRecord(game, score) {
-  const prev = getPB(game);
-  const isRecord = score > prev;
-  if (isRecord) setPB(game, score);
-  return { isRecord, prev, meaningful: isRecord && prev > 0 };
-}
-
-/** Peringkat sebuah skor di leaderboard (buat "posisi lo #X dari Y") */
-export async function getRank({ game, score, eventId = null, month = null }) {
-  const rows = await getLeaderboard({ game, eventId, month, limit: 100000 });
-  const total = rows.length;
-  // rank = jumlah skor yang lebih tinggi + 1
-  const higher = rows.filter((r) => r.score > score).length;
-  return { rank: higher + 1, total };
-}
-
-// Flag supaya UI tahu ini masih backend lokal
-export const BACKEND = 'local';

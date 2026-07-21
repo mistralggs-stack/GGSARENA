@@ -158,7 +158,7 @@ export function createTypingGame(ctx) {
     if (silent) return;   // abort (pindah view) — jangan munculin popup
     const elapsedSec = Math.max(1, DURATION - st.time);
     const cps = Math.round((st.correct / elapsedSec) * 10) / 10;   // karakter per detik
-    last = { score: r.score, detail: { wpm: r.wpm, cps, accuracy: r.acc, correct: st.correct, wrong: st.wrong, duration: DURATION } };
+    last = { score: r.score, run_id: crypto.randomUUID(), detail: { wpm: r.wpm, cps, accuracy: r.acc, correct: st.correct, wrong: st.wrong, duration: DURATION } };
 
     // isi popup
     $('#typ-m-wpm', root).textContent = r.wpm;
@@ -228,7 +228,7 @@ export function createTypingGame(ctx) {
       keyboard: cleanText($('#typ-kbd', root).value, 40) || undefined,
       switches: cleanText($('#typ-switch', root).value, 40) || undefined,
     };
-    const res = await ctx.onSubmit({ game: 'typing', score: last.score, player_name: name, detail });
+    const res = await ctx.onSubmit({ game: 'typing', score: last.score, player_name: name, detail, run_id: last.run_id });
     if (res.ok) {
       const ps = $('#typ-postsave', root);
       ps.textContent = res.rank

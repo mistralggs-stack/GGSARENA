@@ -219,7 +219,7 @@ export function createReactionGame(ctx) {
     const avg = Math.round(st.times.reduce((a, b) => a + b, 0) / st.times.length);
     const best = Math.min(...st.times);
     const score = clamp(Math.round(60000 / avg), 0, 1000);
-    last = { score, detail: { avg_ms: avg, best_ms: best, rounds: ROUNDS, errors: st.errors, times: st.times } };
+    last = { score, run_id: crypto.randomUUID(), detail: { avg_ms: avg, best_ms: best, rounds: ROUNDS, errors: st.errors, times: st.times } };
     setPad('done', `${avg}ms rata²`, 'Mantul! Cek hasilnya 👆');
 
     $('#rx-m-avg', root).textContent = avg;
@@ -275,7 +275,7 @@ export function createReactionGame(ctx) {
       mouse: cleanText($('#rx-mouse', root).value, 40) || undefined,
       polling: parseInt($('#rx-poll', root).value, 10) || undefined,
     };
-    const res = await ctx.onSubmit({ game: 'reaction', score: last.score, player_name: name, detail });
+    const res = await ctx.onSubmit({ game: 'reaction', score: last.score, player_name: name, detail, run_id: last.run_id });
     if (res.ok) {
       const ps = $('#rx-postsave', root);
       ps.textContent = res.rank

@@ -4,7 +4,7 @@
 // ============================================================
 
 import { $, $$, esc, qp, postToParent } from './util.js';
-import { submitScore, getLeaderboard, getRank, seedDemo, clearDemo, BACKEND } from './store.js';
+import { submitScore, getLeaderboard, getRank, onNewScore, seedDemo, clearDemo, BACKEND } from './store.js';
 import { isMuted, toggleMute } from './fx.js';
 import { createAimGame } from './games/aim.js';
 import { createTypingGame } from './games/typing.js';
@@ -300,6 +300,13 @@ if (muteBtn) {
   paint();
   muteBtn.addEventListener('click', () => { toggleMute(); paint(); });
 }
+
+// Realtime (mode Supabase): skor pemain lain masuk -> papan langsung ke-refresh
+onNewScore((row) => {
+  renderHubBoard(row.game);
+  renderBoard(row.game);
+  if (currentView === 'board') renderBoardView();
+});
 
 const initial = (location.hash || '').replace('#', '');
 showView(GAME_META[initial] || initial === 'board' ? initial : 'hub');

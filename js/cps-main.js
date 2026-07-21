@@ -4,7 +4,7 @@
 // ============================================================
 
 import { $, $$, esc, qp, postToParent } from './util.js';
-import { submitScore, getLeaderboard, getRank, BACKEND } from './store.js';
+import { submitScore, getLeaderboard, getRank, onNewScore, BACKEND } from './store.js';
 import { createCpsGame } from './games/cps.js';
 
 if (qp('embed') === '1') document.body.classList.add('embed');
@@ -68,3 +68,4 @@ async function handleSubmit(entry) {
 $('#backend-flag').textContent = `BACKEND: ${BACKEND.toUpperCase()}`;
 createCpsGame({ mountEl: $('#mount-cps'), onSubmit: handleSubmit });
 renderBoard();
+onNewScore((row) => { if (row.game === 'cps') renderBoard(); });

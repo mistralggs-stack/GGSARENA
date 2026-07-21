@@ -202,6 +202,7 @@ export function createAimGame(ctx) {
 
     last = {
       score: st.score,
+      run_id: crypto.randomUUID(),   // 1 run = 1 submit (anti dobel, dicek server)
       detail: { hits: st.hits, miss: st.miss, accuracy: st.acc, max_combo: st.maxMult, duration: DURATION },
     };
     if (silent) return;   // abort (pindah view) — jangan munculin popup
@@ -276,7 +277,7 @@ export function createAimGame(ctx) {
       win_sens: parseInt($('#aim-winsens', root).value, 10) || undefined,
       polling: parseInt($('#aim-poll', root).value, 10) || undefined,
     };
-    const res = await ctx.onSubmit({ game: 'aim', score: last.score, player_name: name, detail });
+    const res = await ctx.onSubmit({ game: 'aim', score: last.score, player_name: name, detail, run_id: last.run_id });
     if (res.ok) {
       // simpan sukses -> tetep kebuka: tunjukin peringkat + tombol share buat nantangin
       const ps = $('#aim-postsave', root);

@@ -160,7 +160,7 @@ export function createCpsGame(ctx) {
     big.textContent = `${clicks} klik`;
     sub.textContent = 'Kelar! Cek hasilnya 👆';
 
-    last = { score: clicks, detail: { cps: avg, peak_sec: peak, consistency: cons, clicks, duration: DURATION } };
+    last = { score: clicks, run_id: crypto.randomUUID(), detail: { cps: avg, peak_sec: peak, consistency: cons, clicks, duration: DURATION } };
 
     $('#cps-m-avg', root).textContent = avg.toFixed(1);
     $('#cps-m-peak', root).textContent = peak;
@@ -206,7 +206,7 @@ export function createCpsGame(ctx) {
       polling: parseInt($('#cps-poll', root).value, 10) || undefined,
       technique: cleanText($('#cps-tech', root).value, 20) || undefined,
     };
-    const res = await ctx.onSubmit({ game: 'cps', score: last.score, player_name: name, detail });
+    const res = await ctx.onSubmit({ game: 'cps', score: last.score, player_name: name, detail, run_id: last.run_id });
     if (res.ok) {
       const ps = $('#cps-postsave', root);
       ps.textContent = res.rank

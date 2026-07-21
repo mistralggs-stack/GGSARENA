@@ -1,5 +1,5 @@
-# Supabase / local credentials — JANGAN commit
-js/config.js
+# Credentials rahasia — JANGAN commit
+# (js/config.js boleh di-commit: isinya cuma anon key yang memang publik + RLS)
 .env
 .env.local
 .env.*.local
