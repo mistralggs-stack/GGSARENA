@@ -4,7 +4,7 @@
 // Combo x1–x5. Skor = akumulasi poin (10 x multiplier per hit).
 // ============================================================
 
-import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn } from '../util.js';
+import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, MACRO_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn, analyzeClickIntervals } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
@@ -140,8 +140,10 @@ export function createAimGame(ctx) {
 
     t.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
+      if (!e.isTrusted) return;   // klik sintetis dari script/console gak dihitung
       if (!st || !st.running) return;
       if (e.pointerType === 'touch') st.usedTouch = true;   // main pakai jari?
+      st.clickTimes.push(performance.now());
       clearTimeout(st.miss_timer);
       registerHit();
       spawn();
@@ -191,7 +193,8 @@ export function createAimGame(ctx) {
   function start() {
     if (st && st.running) return;
     if (locked()) return;   // baru aja kelar -> tahan dulu biar gak kepencet mulai lagi
-    st = { running: true, time: DURATION, hits: 0, miss: 0, streak: 0, score: 0, maxMult: 1, lastMult: 1, acc: 0, usedTouch: false, miss_timer: null, tick_timer: null };
+    st = { running: true, time: DURATION, hits: 0, miss: 0, streak: 0, score: 0, maxMult: 1, lastMult: 1, acc: 0, usedTouch: false, miss_timer: null, tick_timer: null,
+           clickTimes: [] };   // rekam jejak klik buat anti-macro
     hint.style.display = 'none';
     hideResult();
     elScore.textContent = '0'; elCombo.textContent = 'x1'; elAcc.textContent = '0%'; elTime.textContent = DURATION.toFixed(1);
@@ -209,10 +212,22 @@ export function createAimGame(ctx) {
     hint.style.display = 'grid';
     btnStart.disabled = false; btnStop.disabled = true;
 
+    // ===== Lapis 1: deteksi auto-clicker (rentetan klik mustahil / interval robot) =====
+    const an = analyzeClickIntervals(st.clickTimes);
+    const flags = [];
+    const fast = an.intervals.filter((v) => v < 25).length;
+    if (fast >= 15) flags.push('burst_autoclick');   // 15+ klik berjarak <25ms (>40 CPS) — manusia gak gitu di aim test
+    if (an.intervals.length >= 30 && an.cv !== null && an.cv < 0.05) flags.push('interval_metronom');
+    const macroRun = flags.length > 0;
+
+    // ===== Lapis 2: bukti mentah ikut kesimpen di detail =====
     last = {
       score: st.score,
       run_id: crypto.randomUUID(),   // 1 run = 1 submit (anti dobel, dicek server)
-      detail: { hits: st.hits, miss: st.miss, accuracy: st.acc, max_combo: st.maxMult, duration: DURATION },
+      detail: { hits: st.hits, miss: st.miss, accuracy: st.acc, max_combo: st.maxMult, duration: DURATION,
+                min_gap: an.min_gap, gap_cv: an.cv,
+                ...(macroRun ? { macro_flags: flags } : {}),
+                gaps_ms: an.intervals },
     };
     if (silent) return;   // abort (pindah view) — jangan munculin popup
     lockUntil = performance.now() + END_LOCK_MS;
@@ -226,21 +241,22 @@ export function createAimGame(ctx) {
     $('#aim-m-acc', root).textContent = st.acc + '%';
     $('#aim-m-hits', root).textContent = `${st.hits}/${st.miss}`;
     $('#aim-hero-tag', root).textContent =
+      macroRun ? '🤖 Pola klik macro kedetek' :
       st.acc >= 85 ? 'Aim dewa! ⚡' : st.acc >= 65 ? 'Gacor! 🔥' : st.acc >= 45 ? 'Lumayan, gas lagi 💪' : 'Latihan lagi 🎯';
 
-    // gate: main pakai layar sentuh -> nggak bisa submit (& rekor pribadi gak dihitung)
+    // gate: main pakai layar sentuh / kedetek macro -> nggak bisa submit (& rekor pribadi gak dihitung)
     const mobileRun = st.usedTouch;
     const recEl = $('#aim-record', root);
     let isRec = false;
-    if (!mobileRun) {
+    if (!mobileRun && !macroRun) {
       const rec = checkRecord('aim', st.score);
       isRec = rec.meaningful;
       if (isRec) recEl.textContent = `★ REKOR PRIBADI BARU! (dari ${rec.prev})`;
     }
     recEl.hidden = !isRec;
 
-    $('#aim-gate', root).textContent = MOBILE_BLOCK_MSG;
-    setSubmitGate(root, mobileRun, { gate: '#aim-gate', form: '#aim-form', save: '#aim-save' });
+    $('#aim-gate', root).textContent = macroRun ? MACRO_BLOCK_MSG : MOBILE_BLOCK_MSG;
+    setSubmitGate(root, mobileRun || macroRun, { gate: '#aim-gate', form: '#aim-form', save: '#aim-save' });
     // alur: simpan dulu -> baru tombol share muncul. (mobile: gak bisa simpan, share langsung boleh)
     $('#aim-postsave', root).hidden = true;
     $('#aim-share', root).hidden = !mobileRun;
@@ -255,8 +271,9 @@ export function createAimGame(ctx) {
 
   // klik area kosong = miss
   arena.addEventListener('pointerdown', (e) => {
+    if (!e.isTrusted) return;   // klik sintetis dari script/console gak dihitung
     if (!st || !st.running) return;
-    if (!e.target.classList.contains('target')) { registerMiss(); }
+    if (!e.target.classList.contains('target')) { st.clickTimes.push(performance.now()); registerMiss(); }
   });
 
   btnStart.addEventListener('click', () => start());
