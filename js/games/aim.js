@@ -272,7 +272,11 @@ export function createAimGame(ctx) {
   // klik area kosong = miss
   arena.addEventListener('pointerdown', (e) => {
     if (!e.isTrusted) return;   // klik sintetis dari script/console gak dihitung
-    if (!st || !st.running) return;
+    if (!st || !st.running) {
+      // run kelar & popup ketutup -> klik arena buka lagi hasilnya (skor jangan ilang)
+      if (last && !resultBox.classList.contains('show') && !locked()) showResult();
+      return;
+    }
     if (!e.target.classList.contains('target')) { st.clickTimes.push(performance.now()); registerMiss(); }
   });
 

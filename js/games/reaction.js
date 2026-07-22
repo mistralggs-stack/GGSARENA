@@ -270,7 +270,8 @@ export function createReactionGame(ctx) {
     if (p === 'go') { if (e.pointerType === 'touch') st.usedTouch = true; return recordHit(); }
     if (p === 'early' || p === 'wrong') return beginRound();     // ulang ronde ini
     if (p === 'roundresult') return beginRound();                // lanjut ronde
-    // 'done' -> diam, tinggal simpan
+    // 'done' & popup ketutup -> klik pad buka lagi hasilnya (skor jangan ilang)
+    if (p === 'done' && last && !resultBox.classList.contains('show') && !locked()) showResult();
   });
 
   $('#rx-reset', root).addEventListener('click', reset);
