@@ -93,6 +93,28 @@ export function prefillProfile(root, map) {
   }
 }
 
+// ---------- Anti-macro / auto-clicker ----------
+// Lapis 1: deteksi pola klik robot (interval terlalu rapi / mustahil buat manusia).
+// Lapis 2: statistik mentahnya ikut kesimpen di detail skor -> admin bisa review bukti.
+// Catatan: klik manusia itu berantakan (variasi gede), macro itu rapi kayak metronom.
+export function analyzeClickIntervals(times) {
+  const iv = [];
+  for (let i = 1; i < times.length; i++) iv.push(times[i] - times[i - 1]);
+  if (!iv.length) return { intervals: [], min_gap: null, mean_gap: null, cv: null };
+  const mean = iv.reduce((a, b) => a + b, 0) / iv.length;
+  const sd = Math.sqrt(iv.reduce((a, v) => a + (v - mean) ** 2, 0) / iv.length);
+  return {
+    intervals: iv.slice(0, 300).map((v) => Math.round(v * 10) / 10),  // bukti mentah (maks 300)
+    min_gap: Math.round(Math.min(...iv) * 10) / 10,                   // jarak klik tercepat (ms)
+    mean_gap: Math.round(mean * 10) / 10,                             // rata² jarak klik (ms)
+    cv: mean > 0 ? Math.round((sd / mean) * 1000) / 1000 : null,      // variasi: manusia ~0.15+, macro <0.06
+  };
+}
+
+export const MACRO_BLOCK_MSG =
+  '🤖 Sistem mendeteksi pola klik ala macro/auto-clicker (interval terlalu rapi/cepat buat manusia). ' +
+  'Skor ini gak bisa masuk leaderboard. Ngerasa salah deteksi? Main lagi aja — pola klik manusia normal gak bakal kena.';
+
 // ---------- Kunci tombol "Main Lagi" sehabis game kelar ----------
 // Banyak player gak sengaja kepencet "Main Lagi" -> skor kereset sebelum
 // sempet di-submit. Tombol di-disable dulu beberapa detik + countdown di label.

@@ -5,7 +5,7 @@
 // Touch (HP) boleh main tapi gak bisa submit (fairness).
 // ============================================================
 
-import { $, esc, clamp, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn } from '../util.js';
+import { $, esc, clamp, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, MACRO_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn, analyzeClickIntervals } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
@@ -119,7 +119,8 @@ export function createCpsGame(ctx) {
   }
 
   function start() {
-    st = { running: true, t0: performance.now(), time: DURATION, clicks: 0, perSec: new Array(DURATION).fill(0), usedTouch: false, tick: null };
+    st = { running: true, t0: performance.now(), time: DURATION, clicks: 0, perSec: new Array(DURATION).fill(0), usedTouch: false, tick: null,
+           clickTimes: [], posSet: new Set() };   // rekam jejak klik buat anti-macro
     pad.dataset.state = 'run';
     big.textContent = '0';
     sub.textContent = 'GAS! KLIK TERUS! ⚡';
@@ -136,12 +137,15 @@ export function createCpsGame(ctx) {
   }
 
   function onPadClick(e) {
+    if (!e.isTrusted) return;   // klik sintetis dari script/console gak dihitung
     if (!st || !st.running) {
       if (resultBox.classList.contains('show') || locked()) return;
       start();
       return;
     }
     if (e.pointerType === 'touch') st.usedTouch = true;
+    st.clickTimes.push(performance.now());
+    st.posSet.add(Math.round(e.clientX) + ',' + Math.round(e.clientY));
     const sec = Math.min(DURATION - 1, Math.floor((performance.now() - st.t0) / 1000));
     st.clicks++;
     st.perSec[sec]++;
@@ -173,26 +177,44 @@ export function createCpsGame(ctx) {
     big.textContent = `${clicks} klik`;
     sub.textContent = 'Kelar! Cek hasilnya 👆';
 
-    last = { score: clicks, run_id: crypto.randomUUID(), detail: { cps: avg, peak_sec: peak, consistency: cons, clicks, duration: DURATION } };
+    // ===== Lapis 1: deteksi pola macro / auto-clicker =====
+    // Threshold sengaja longgar biar jitter/butterfly/drag yang sah gak kena.
+    const an = analyzeClickIntervals(st.clickTimes);
+    const flags = [];
+    if (avg > 35) flags.push('cps_mustahil');                                    // >35 CPS rata² 10 dtk = bukan manusia
+    if (clicks >= 30 && an.cv !== null && an.cv < 0.06) flags.push('interval_metronom');  // rapi kayak metronom
+    const under10 = an.intervals.filter((v) => v < 10).length;
+    if (an.intervals.length >= 20 && under10 / an.intervals.length > 0.6) flags.push('burst_mustahil');  // mayoritas klik <10ms
+    if (clicks >= 80 && st.posSet.size <= 2) flags.push('kursor_diam');          // 80+ klik di titik piksel yang sama persis
+    const macroRun = flags.length > 0;
+
+    // ===== Lapis 2: bukti mentah ikut kesimpen di detail -> bisa direview admin =====
+    last = { score: clicks, run_id: crypto.randomUUID(), detail: {
+      cps: avg, peak_sec: peak, consistency: cons, clicks, duration: DURATION,
+      min_gap: an.min_gap, mean_gap: an.mean_gap, gap_cv: an.cv, distinct_pos: st.posSet.size,
+      ...(macroRun ? { macro_flags: flags } : {}),
+      gaps_ms: an.intervals,
+    } };
 
     $('#cps-m-avg', root).textContent = avg.toFixed(1);
     $('#cps-m-peak', root).textContent = peak;
     $('#cps-m-cons', root).textContent = cons + '%';
     $('#cps-hero-tag', root).textContent =
+      macroRun ? '🤖 Pola klik macro kedetek' :
       avg >= 12 ? 'Jari lo mesin! ⚡' : avg >= 8 ? 'Gacor! 🔥' : avg >= 5 ? 'Lumayan, gas lagi 💪' : 'Warm up dulu 🐢';
 
     const mobileRun = st.usedTouch;
     const recEl = $('#cps-record', root);
     let isRec = false;
-    if (!mobileRun) {
+    if (!mobileRun && !macroRun) {
       const rec = checkRecord('cps', clicks);
       isRec = rec.meaningful;
       if (isRec) recEl.textContent = `★ REKOR PRIBADI BARU! (dari ${rec.prev})`;
     }
     recEl.hidden = !isRec;
 
-    $('#cps-gate', root).textContent = MOBILE_BLOCK_MSG;
-    setSubmitGate(root, mobileRun, { gate: '#cps-gate', form: '#cps-form', save: '#cps-save' });
+    $('#cps-gate', root).textContent = macroRun ? MACRO_BLOCK_MSG : MOBILE_BLOCK_MSG;
+    setSubmitGate(root, mobileRun || macroRun, { gate: '#cps-gate', form: '#cps-form', save: '#cps-save' });
     // alur: simpan dulu -> baru tombol share muncul. (mobile: gak bisa simpan, share langsung boleh)
     $('#cps-postsave', root).hidden = true;
     $('#cps-share', root).hidden = !mobileRun;
