@@ -5,7 +5,7 @@
 // Skor = WPM x akurasi (contoh 80 WPM @ 95% = 76).
 // ============================================================
 
-import { $, esc, cleanText, toast, shareScore, wireFullscreen, isTouchOnly, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn } from '../util.js';
+import { $, esc, cleanText, toast, shareScore, wireFullscreen, isTouchOnly, MOBILE_BLOCK_MSG, TYPING_CHEAT_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
@@ -175,7 +175,8 @@ export function createTypingGame(ctx) {
   function start() {
     if (st && st.running) return;
     if (locked()) return;   // baru aja kelar -> tahan dulu biar gak ke-restart gak sengaja
-    st = { running: true, time: DURATION, text: buildText(), idx: 0, correct: 0, wrong: 0, wrongSet: new Set(), prevVal: '', tick: null };
+    st = { running: true, time: DURATION, text: buildText(), idx: 0, correct: 0, wrong: 0, wrongSet: new Set(), prevVal: '', tick: null,
+           charTimes: [], maxBurst: 0, backspaces: 0 };   // jejak ketikan buat anti-paste/macro
     hideResult();
     elWpm.textContent = '0'; elAcc.textContent = '100%'; elScore.textContent = '0'; elTime.textContent = DURATION.toFixed(1);
     render();
@@ -200,27 +201,53 @@ export function createTypingGame(ctx) {
     lockUntil = performance.now() + END_LOCK_MS;
     const elapsedSec = Math.max(1, DURATION - st.time);
     const cps = Math.round((st.correct / elapsedSec) * 10) / 10;   // karakter per detik
-    last = { score: r.score, run_id: crypto.randomUUID(), detail: { wpm: r.wpm, cps, accuracy: r.acc, correct: st.correct, wrong: st.wrong, duration: DURATION } };
+
+    // ===== Lapis 1: deteksi paste / macro ketik / kecepatan mustahil =====
+    const flags = [];
+    if (st.maxBurst >= 12) flags.push('paste_borongan');           // 12+ char masuk dalam 1 event = bukan ngetik
+    const iv = [];
+    for (let k = 1; k < st.charTimes.length; k++) iv.push(st.charTimes[k] - st.charTimes[k - 1]);
+    const fastIv = iv.filter((v) => v < 15).length;
+    if (st.charTimes.length > 50 && iv.length && fastIv / iv.length > 0.3) flags.push('ketikan_robot');  // mayoritas char <15ms
+    // ritme metronom: manusia ngetik gak rata (beda jari/jarak tombol), macro rapi banget
+    let charCv = null;
+    if (iv.length >= 30) {
+      const m = iv.reduce((a, b) => a + b, 0) / iv.length;
+      const sd = Math.sqrt(iv.reduce((a, v) => a + (v - m) ** 2, 0) / iv.length);
+      charCv = m > 0 ? Math.round((sd / m) * 1000) / 1000 : null;
+    }
+    if (charCv !== null && charCv < 0.12 && st.charTimes.length > 60) flags.push('ritme_robot');   // manusia biasanya CV 0.3+
+    if (r.wpm > 170) flags.push('wpm_mustahil');                   // di atas rekor dunia sustained 60 dtk
+    if (r.wpm >= 130 && st.wrong === 0 && st.backspaces === 0 && st.correct > 100) flags.push('terlalu_sempurna');  // 130+ WPM tanpa typo & tanpa koreksi semenit penuh
+    const cheatRun = flags.length > 0;
+
+    // ===== Lapis 2: bukti mentah ikut kesimpen di detail =====
+    last = { score: r.score, run_id: crypto.randomUUID(), detail: {
+      wpm: r.wpm, cps, accuracy: r.acc, correct: st.correct, wrong: st.wrong, duration: DURATION,
+      max_burst: st.maxBurst, char_cv: charCv, backspaces: st.backspaces,
+      ...(cheatRun ? { cheat_flags: flags } : {}),
+    } };
 
     // isi popup
     $('#typ-m-wpm', root).textContent = r.wpm;
     $('#typ-m-cps', root).textContent = cps.toFixed(1);
     $('#typ-m-acc', root).textContent = r.acc + '%';
     $('#typ-hero-tag', root).textContent =
+      cheatRun ? '📋 Paste/macro kedetek' :
       r.wpm >= 90 ? 'Jari dewa! ⚡' : r.wpm >= 60 ? 'Gacor! 🔥' : r.wpm >= 35 ? 'Lumayan, gas lagi 💪' : 'Warm up dulu 🐢';
 
     const mobileRun = isTouchOnly();
     const recEl = $('#typ-record', root);
     let isRec = false;
-    if (!mobileRun) {
+    if (!mobileRun && !cheatRun) {
       const rec = checkRecord('typing', r.score);
       isRec = rec.meaningful;
       if (isRec) recEl.textContent = `★ REKOR PRIBADI BARU! (dari ${rec.prev})`;
     }
     recEl.hidden = !isRec;
 
-    $('#typ-gate', root).textContent = MOBILE_BLOCK_MSG;
-    setSubmitGate(root, mobileRun, { gate: '#typ-gate', form: '#typ-form', save: '#typ-save' });
+    $('#typ-gate', root).textContent = cheatRun ? TYPING_CHEAT_MSG : MOBILE_BLOCK_MSG;
+    setSubmitGate(root, mobileRun || cheatRun, { gate: '#typ-gate', form: '#typ-form', save: '#typ-save' });
     // alur: simpan dulu -> baru tombol share muncul. (mobile: gak bisa simpan, share langsung boleh)
     $('#typ-postsave', root).hidden = true;
     $('#typ-share', root).hidden = !mobileRun;
@@ -245,6 +272,7 @@ export function createTypingGame(ctx) {
   }
   function processBackspace() {
     if (st.idx > 0) {
+      st.backspaces++;
       st.idx--;
       if (st.wrongSet.has(st.idx)) { st.wrongSet.delete(st.idx); st.wrong--; }
       else { st.correct--; }
@@ -258,10 +286,19 @@ export function createTypingGame(ctx) {
     let i = 0;
     while (i < v.length && i < prev.length && v[i] === prev[i]) i++;
     for (let k = 0; k < prev.length - i; k++) processBackspace();
-    for (const ch of v.slice(i)) processChar(ch);
+    const added = v.slice(i);
+    // jejak anti-cheat: ngetik normal = 1-2 char per event; paste/macro = borongan
+    if (added.length > st.maxBurst) st.maxBurst = added.length;
+    const now = performance.now();
+    for (const ch of added) { processChar(ch); st.charTimes.push(now); }
     st.prevVal = v;
     render(); recompute();
   });
+
+  // ===== Anti-cheat: blokir copy teks soal & paste/drop ke kolom ketik =====
+  elText.addEventListener('copy', (e) => e.preventDefault());
+  elInput.addEventListener('paste', (e) => { e.preventDefault(); if (st && st.running) toast('Gak bisa paste di sini 😏 Ketik manual!'); });
+  elInput.addEventListener('drop', (e) => e.preventDefault());
 
   btnStart.addEventListener('click', () => beginCountdown());
   btnStop.addEventListener('click', () => { if (cdTimer) cancelCountdown(); else stop(); });

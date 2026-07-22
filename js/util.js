@@ -111,6 +111,10 @@ export function analyzeClickIntervals(times) {
   };
 }
 
+export const TYPING_CHEAT_MSG =
+  '📋 Sistem mendeteksi teks masuk borongan (paste / macro / kecepatan mustahil buat manusia). ' +
+  'Skor ini gak bisa masuk leaderboard. Ketik manual ya bro — jari lo pasti bisa 😏';
+
 export const MACRO_BLOCK_MSG =
   '🤖 Sistem mendeteksi pola klik ala macro/auto-clicker (interval terlalu rapi/cepat buat manusia). ' +
   'Skor ini gak bisa masuk leaderboard. Ngerasa salah deteksi? Main lagi aja — pola klik manusia normal gak bakal kena.';

@@ -338,6 +338,7 @@ a{ color:var(--accent-ink); }
    Typing field
    ============================================================ */
 .type-text{
+  user-select:none; -webkit-user-select:none;   /* anti copy-paste: teks soal gak bisa diblok */
   font-family:var(--font-mono); font-size:18px; line-height:1.9;
   background:var(--paper-2);
   border:1.5px solid var(--ink);
