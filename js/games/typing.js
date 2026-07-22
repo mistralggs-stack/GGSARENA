@@ -310,7 +310,8 @@ export function createTypingGame(ctx) {
 
   $('#typ-close', root).addEventListener('click', hideResult);
   $('#typ-again', root).addEventListener('click', () => { if (locked()) return; hideResult(); beginCountdown(); });
-  resultBox.addEventListener('click', (e) => { if (e.target === resultBox && !locked()) hideResult(); }); // klik backdrop
+  // klik backdrop SENGAJA gak nutup popup — banyak player kepencet di luar
+  // popup hasil, skornya keburu ilang sebelum sempet di-submit. Tutup cuma via ✕ / Esc.
   const onKey = (e) => {
     if (!_active) return;
     if (e.key === 'Escape' && resultBox.classList.contains('show')) { hideResult(); return; }

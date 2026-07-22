@@ -4,7 +4,7 @@
 // ============================================================
 
 import { $, $$, esc, qp, postToParent, isTouchOnly } from './util.js';
-import { submitScore, getLeaderboard, getRank, onNewScore, BACKEND } from './store.js';
+import { submitScore, getLeaderboard, getRank, onNewScore } from './store.js';
 import { createCpsGame } from './games/cps.js';
 
 if (qp('embed') === '1') document.body.classList.add('embed');
@@ -65,7 +65,6 @@ async function handleSubmit(entry) {
   return res;
 }
 
-$('#backend-flag').textContent = `BACKEND: ${BACKEND.toUpperCase()}`;
 if (isTouchOnly()) { const tn = $('#touch-notice'); if (tn) tn.hidden = false; }
 createCpsGame({ mountEl: $('#mount-cps'), onSubmit: handleSubmit });
 renderBoard();

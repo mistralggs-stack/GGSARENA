@@ -253,7 +253,8 @@ export function createCpsGame(ctx) {
 
   $('#cps-close', root).addEventListener('click', hideResult);
   $('#cps-again', root).addEventListener('click', () => { if (locked()) return; hideResult(); reset(); start(); });
-  resultBox.addEventListener('click', (e) => { if (e.target === resultBox && !locked()) hideResult(); });
+  // klik backdrop SENGAJA gak nutup popup — banyak player kepencet di luar
+  // popup hasil, skornya keburu ilang sebelum sempet di-submit. Tutup cuma via ✕ / Esc.
   const onKey = (e) => { if (e.key === 'Escape' && resultBox.classList.contains('show')) hideResult(); };
   document.addEventListener('keydown', onKey);
 

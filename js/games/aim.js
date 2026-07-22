@@ -324,7 +324,8 @@ export function createAimGame(ctx) {
 
   $('#aim-close', root).addEventListener('click', hideResult);
   $('#aim-again', root).addEventListener('click', () => { if (locked()) return; hideResult(); start(); });
-  resultBox.addEventListener('click', (e) => { if (e.target === resultBox && !locked()) hideResult(); });
+  // klik backdrop SENGAJA gak nutup popup — banyak player kepencet di luar
+  // popup hasil, skornya keburu ilang sebelum sempet di-submit. Tutup cuma via ✕ / Esc.
 
   let _active = false;
   function isActive() { return _active; }

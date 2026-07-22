@@ -4,7 +4,7 @@
 // ============================================================
 
 import { $, $$, esc, qp, postToParent, isTouchOnly } from './util.js';
-import { submitScore, getLeaderboard, getRank, onNewScore, seedDemo, clearDemo, BACKEND } from './store.js';
+import { submitScore, getLeaderboard, getRank, onNewScore, seedDemo, clearDemo } from './store.js';
 import { isMuted, toggleMute } from './fx.js';
 import { createAimGame } from './games/aim.js';
 import { createTypingGame } from './games/typing.js';
@@ -300,7 +300,6 @@ $$('[data-open]').forEach((el) => el.addEventListener('click', () => showView(el
 $$('[data-back]').forEach((b) => b.addEventListener('click', () => showView('hub')));
 
 // ---------- Boot ----------
-$('#backend-flag').textContent = `BACKEND: ${BACKEND.toUpperCase()}`;
 
 // Pemain layar sentuh (HP/tablet): kasih tau DI DEPAN soal aturan leaderboard
 if (isTouchOnly()) { const tn = $('#touch-notice'); if (tn) tn.hidden = false; }
