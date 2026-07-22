@@ -140,6 +140,9 @@ export function createCpsGame(ctx) {
     if (!e.isTrusted) return;   // klik sintetis dari script/console gak dihitung
     if (!st || !st.running) {
       if (resultBox.classList.contains('show') || locked()) return;
+      // run barusan kelar -> klik pad BUKA LAGI hasilnya, bukan mulai game baru.
+      // (dulu: klik di mana aja langsung restart -> skor ilang sebelum sempet submit)
+      if (st && last) { showResult(); return; }
       start();
       return;
     }
@@ -175,7 +178,7 @@ export function createCpsGame(ctx) {
     const cons = mean > 0 ? clamp(Math.round(100 - (Math.sqrt(variance) / mean) * 100), 0, 100) : 0;
 
     big.textContent = `${clicks} klik`;
-    sub.textContent = 'Kelar! Cek hasilnya 👆';
+    sub.textContent = 'Kelar! Klik pad buat buka hasil · mau main baru? Pencet ↺ Ulang';
 
     // ===== Lapis 1: deteksi pola macro / auto-clicker =====
     // Threshold sengaja longgar biar jitter/butterfly/drag yang sah gak kena.
