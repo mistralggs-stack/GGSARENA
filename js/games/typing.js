@@ -5,13 +5,16 @@
 // Skor = WPM x akurasi (contoh 80 WPM @ 95% = 76).
 // ============================================================
 
-import { $, esc, cleanText, toast, shareScore, wireFullscreen, isTouchOnly, MOBILE_BLOCK_MSG, setSubmitGate } from '../util.js';
+import { $, esc, cleanText, toast, shareScore, wireFullscreen, isTouchOnly, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
 
 const DURATION = 60;          // 1 menit
 const REFILL_AT = 90;         // sisa char < ini -> tambah teks baru (biar gak abis)
+
+// field form <-> key profil tersimpan (biar gak isi gear ulang tiap main)
+const PROFILE_MAP = { '#typ-discord': 'discord', '#typ-kbd': 'keyboard', '#typ-switch': 'kb_switch' };
 
 // Wordlist gaming casual Indonesia
 const WORDS = [
@@ -48,7 +51,7 @@ export function createTypingGame(ctx) {
     </div>
 
     <div class="label" style="margin-bottom:8px">STATION 02 · KETIK CEPAT — 1 MENIT (60 DETIK)</div>
-    <div class="type-text mono" id="typ-text">Tekan tombol Mulai lalu langsung ketik. Skor = WPM × akurasi. Gaskeun! 🔥</div>
+    <div class="type-text mono" id="typ-text">Tekan tombol Mulai (atau SPASI) — ada countdown 3-2-1, terus langsung ketik. Skor = WPM × akurasi. Gaskeun! 🔥</div>
     <input class="type-input mono" id="typ-input" type="text" autocomplete="off" autocapitalize="off"
            autocorrect="off" spellcheck="false" placeholder="Klik di sini terus mulai ngetik..." disabled>
 
@@ -105,6 +108,37 @@ export function createTypingGame(ctx) {
 
   let st = null, last = null, _active = false;
 
+  // Jeda pengaman setelah waktu abis: orang masih asik ngetik pas timer kelar,
+  // jadi ketikan/pencetan sisa jangan sampe bikin game mulai lagi sendiri.
+  const END_LOCK_MS = 2500;
+  let lockUntil = 0;
+  const locked = () => performance.now() < lockUntil;
+
+  // countdown 3-2-1 sebelum tes beneran jalan (biar player siap posisi)
+  const COUNTDOWN_FROM = 3;
+  let cdTimer = null;
+
+  function cancelCountdown() {
+    if (!cdTimer) return;
+    clearInterval(cdTimer); cdTimer = null;
+    btnStart.disabled = false; btnStop.disabled = true;
+    elText.textContent = 'Tekan tombol Mulai (atau SPASI) — ada countdown 3-2-1, terus langsung ketik. Skor = WPM × akurasi. Gaskeun! 🔥';
+  }
+
+  function beginCountdown() {
+    if ((st && st.running) || cdTimer || locked()) return;
+    hideResult();
+    btnStart.disabled = true; btnStop.disabled = false;
+    let n = COUNTDOWN_FROM;
+    const paint = () => { elText.innerHTML = `<span class="type-countdown">${n}</span>`; };
+    paint(); sfx.go();
+    cdTimer = setInterval(() => {
+      n--;
+      if (n > 0) { paint(); sfx.go(); }
+      else { clearInterval(cdTimer); cdTimer = null; sfx.combo(3); start(); }
+    }, 1000);
+  }
+
   function render() {
     const { text, idx, wrongSet } = st;
     let html = '';
@@ -140,6 +174,7 @@ export function createTypingGame(ctx) {
 
   function start() {
     if (st && st.running) return;
+    if (locked()) return;   // baru aja kelar -> tahan dulu biar gak ke-restart gak sengaja
     st = { running: true, time: DURATION, text: buildText(), idx: 0, correct: 0, wrong: 0, wrongSet: new Set(), prevVal: '', tick: null };
     hideResult();
     elWpm.textContent = '0'; elAcc.textContent = '100%'; elScore.textContent = '0'; elTime.textContent = DURATION.toFixed(1);
@@ -162,6 +197,7 @@ export function createTypingGame(ctx) {
     btnStart.disabled = false; btnStop.disabled = true;
     const r = recompute();
     if (silent) return;   // abort (pindah view) — jangan munculin popup
+    lockUntil = performance.now() + END_LOCK_MS;
     const elapsedSec = Math.max(1, DURATION - st.time);
     const cps = Math.round((st.correct / elapsedSec) * 10) / 10;   // karakter per detik
     last = { score: r.score, run_id: crypto.randomUUID(), detail: { wpm: r.wpm, cps, accuracy: r.acc, correct: st.correct, wrong: st.wrong, duration: DURATION } };
@@ -189,10 +225,13 @@ export function createTypingGame(ctx) {
     $('#typ-postsave', root).hidden = true;
     $('#typ-share', root).hidden = !mobileRun;
     showResult();
+    lockAgainBtn($('#typ-again', root), END_LOCK_MS);   // biar gak kepencet "Main Lagi" sebelum submit
     countUp($('#typ-hero-score', root), r.score);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
     $('#typ-name', root).value = localStorage.getItem('ggs_nick') || '';
-    $('#typ-name', root).focus();
+    prefillProfile(root, PROFILE_MAP);   // gear udah pernah disimpen -> auto keisi
+    // fokus ke nickname DITUNDA sampai jeda kelar — ketikan sisa gak nyampah ke form
+    setTimeout(() => { if (resultBox.classList.contains('show')) $('#typ-name', root).focus(); }, END_LOCK_MS);
   }
 
   // Input via event 'input' + algoritma delta — jalan di desktop DAN keyboard HP
@@ -224,8 +263,8 @@ export function createTypingGame(ctx) {
     render(); recompute();
   });
 
-  btnStart.addEventListener('click', () => start());
-  btnStop.addEventListener('click', () => stop());
+  btnStart.addEventListener('click', () => beginCountdown());
+  btnStop.addEventListener('click', () => { if (cdTimer) cancelCountdown(); else stop(); });
   wireFullscreen($('#typ-fs', root), root);
 
   $('#typ-save', root).addEventListener('click', async () => {
@@ -239,6 +278,7 @@ export function createTypingGame(ctx) {
       keyboard: cleanText($('#typ-kbd', root).value, 40) || undefined,
       switches: cleanText($('#typ-switch', root).value, 40) || undefined,
     };
+    saveProfile({ discord: detail.discord, keyboard: detail.keyboard, kb_switch: detail.switches });
     const res = await ctx.onSubmit({ game: 'typing', score: last.score, player_name: name, detail, run_id: last.run_id });
     if (res.ok) {
       const ps = $('#typ-postsave', root);
@@ -269,14 +309,24 @@ export function createTypingGame(ctx) {
   });
 
   $('#typ-close', root).addEventListener('click', hideResult);
-  $('#typ-again', root).addEventListener('click', () => { hideResult(); start(); });
-  resultBox.addEventListener('click', (e) => { if (e.target === resultBox) hideResult(); }); // klik backdrop
-  const onKey = (e) => { if (e.key === 'Escape' && resultBox.classList.contains('show')) hideResult(); };
+  $('#typ-again', root).addEventListener('click', () => { if (locked()) return; hideResult(); beginCountdown(); });
+  // klik backdrop SENGAJA gak nutup popup — banyak player kepencet di luar
+  // popup hasil, skornya keburu ilang sebelum sempet di-submit. Tutup cuma via ✕ / Esc.
+  const onKey = (e) => {
+    if (!_active) return;
+    if (e.key === 'Escape' && resultBox.classList.contains('show')) { hideResult(); return; }
+    // SPASI = mulai (dengan countdown) — cuma pas lagi gak main & modal ketutup
+    if (e.code === 'Space' && !resultBox.classList.contains('show') && (!st || !st.running) && !cdTimer
+        && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON') {
+      e.preventDefault();
+      beginCountdown();
+    }
+  };
   document.addEventListener('keydown', onKey);
 
   return {
     activate() { _active = true; },
-    deactivate() { _active = false; if (st && st.running) stop(true); hideResult(); },
+    deactivate() { _active = false; cancelCountdown(); if (st && st.running) stop(true); hideResult(); },
     destroy() { document.removeEventListener('keydown', onKey); },
   };
 }

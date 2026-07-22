@@ -4,7 +4,7 @@
 // Combo x1–x5. Skor = akumulasi poin (10 x multiplier per hit).
 // ============================================================
 
-import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate } from '../util.js';
+import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
@@ -12,6 +12,12 @@ import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
 const DURATION = 30;         // detik
 const SIZE_MAX = 56, SIZE_MIN = 24;
 const RATE_MAX = 1000, RATE_MIN = 440;   // ms per target (awal -> akhir)
+
+// field form <-> key profil tersimpan (biar gak isi gear ulang tiap main)
+const PROFILE_MAP = {
+  '#aim-discord': 'discord', '#aim-mouse': 'mouse', '#aim-pad': 'mousepad',
+  '#aim-glide': 'glide', '#aim-dpi': 'dpi', '#aim-winsens': 'win_sens', '#aim-poll': 'polling',
+};
 
 export function createAimGame(ctx) {
   const root = ctx.mountEl;
@@ -35,7 +41,6 @@ export function createAimGame(ctx) {
           </div>
         </div>
       </div>
-      <div class="combo-flag" id="aim-comboflag" style="display:none">COMBO <b>x1</b></div>
     </div>
 
     <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
@@ -89,7 +94,6 @@ export function createAimGame(ctx) {
 
   const arena   = $('#aim-arena', root);
   const hint    = $('#aim-hint', root);
-  const flag    = $('#aim-comboflag', root);
   const elScore = $('#aim-score', root);
   const elCombo = $('#aim-combo', root);
   const elAcc   = $('#aim-acc', root);
@@ -100,6 +104,11 @@ export function createAimGame(ctx) {
 
   let st = null;         // state run aktif
   let last = null;       // hasil run terakhir (untuk save)
+
+  // jeda pengaman setelah kelar: klik/pencetan sisa gak bikin restart / nutup popup
+  const END_LOCK_MS = 2500;
+  let lockUntil = 0;
+  const locked = () => performance.now() < lockUntil;
 
   function multiplier(streak) { return clamp(1 + Math.floor(streak / 4), 1, 5); }
 
@@ -148,9 +157,10 @@ export function createAimGame(ctx) {
     st.score += 10 * mult;
     elScore.textContent = st.score;
     elCombo.textContent = 'x' + mult;
-    flag.style.display = 'block';
-    flag.innerHTML = `COMBO <b>x${mult}</b>`;
-    (mult > st.lastMult ? sfx.combo(mult) : sfx.hit());
+    if (mult > st.lastMult) {
+      sfx.combo(mult);
+      elCombo.classList.remove('pop'); void elCombo.offsetWidth; elCombo.classList.add('pop');
+    } else { sfx.hit(); }
     st.lastMult = mult;
     updateAcc();
   }
@@ -159,7 +169,6 @@ export function createAimGame(ctx) {
     st.streak = 0;
     st.lastMult = 1;
     elCombo.textContent = 'x1';
-    flag.innerHTML = 'COMBO <b>x1</b>';
     sfx.miss();
     updateAcc();
   }
@@ -181,6 +190,7 @@ export function createAimGame(ctx) {
 
   function start() {
     if (st && st.running) return;
+    if (locked()) return;   // baru aja kelar -> tahan dulu biar gak kepencet mulai lagi
     st = { running: true, time: DURATION, hits: 0, miss: 0, streak: 0, score: 0, maxMult: 1, lastMult: 1, acc: 0, usedTouch: false, miss_timer: null, tick_timer: null };
     hint.style.display = 'none';
     hideResult();
@@ -196,7 +206,6 @@ export function createAimGame(ctx) {
     clearInterval(st.tick_timer);
     clearTimeout(st.miss_timer);
     clearTargets();
-    flag.style.display = 'none';
     hint.style.display = 'grid';
     btnStart.disabled = false; btnStop.disabled = true;
 
@@ -206,6 +215,7 @@ export function createAimGame(ctx) {
       detail: { hits: st.hits, miss: st.miss, accuracy: st.acc, max_combo: st.maxMult, duration: DURATION },
     };
     if (silent) return;   // abort (pindah view) — jangan munculin popup
+    lockUntil = performance.now() + END_LOCK_MS;
     hint.querySelector('div').innerHTML = `
       <div class="label" style="margin-bottom:8px">STATION 01 · TEMBAK TARGET</div>
       <div style="font-size:18px;font-weight:600">Sikat target secepat mungkin 🎯</div>
@@ -235,9 +245,11 @@ export function createAimGame(ctx) {
     $('#aim-postsave', root).hidden = true;
     $('#aim-share', root).hidden = !mobileRun;
     showResult();
+    lockAgainBtn($('#aim-again', root), END_LOCK_MS);   // biar gak kepencet "Main Lagi" sebelum submit
     countUp($('#aim-hero-score', root), st.score);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
     $('#aim-name', root).value = localStorage.getItem('ggs_nick') || '';
+    prefillProfile(root, PROFILE_MAP);   // gear udah pernah disimpen -> auto keisi
     $('#aim-name', root).focus();
   }
 
@@ -277,6 +289,7 @@ export function createAimGame(ctx) {
       win_sens: parseInt($('#aim-winsens', root).value, 10) || undefined,
       polling: parseInt($('#aim-poll', root).value, 10) || undefined,
     };
+    saveProfile({ discord: detail.discord, mouse: detail.mouse, mousepad: detail.mousepad, glide: detail.glide, dpi: detail.dpi, win_sens: detail.win_sens, polling: detail.polling });
     const res = await ctx.onSubmit({ game: 'aim', score: last.score, player_name: name, detail, run_id: last.run_id });
     if (res.ok) {
       // simpan sukses -> tetep kebuka: tunjukin peringkat + tombol share buat nantangin
@@ -310,8 +323,9 @@ export function createAimGame(ctx) {
   });
 
   $('#aim-close', root).addEventListener('click', hideResult);
-  $('#aim-again', root).addEventListener('click', () => { hideResult(); start(); });
-  resultBox.addEventListener('click', (e) => { if (e.target === resultBox) hideResult(); });
+  $('#aim-again', root).addEventListener('click', () => { if (locked()) return; hideResult(); start(); });
+  // klik backdrop SENGAJA gak nutup popup — banyak player kepencet di luar
+  // popup hasil, skornya keburu ilang sebelum sempet di-submit. Tutup cuma via ✕ / Esc.
 
   let _active = false;
   function isActive() { return _active; }

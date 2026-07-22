@@ -6,7 +6,7 @@
 // Skor = 60000 / rata² ms (makin cepet & akurat makin gede).
 // ============================================================
 
-import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate } from '../util.js';
+import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
@@ -23,6 +23,9 @@ const COLORS = [
 ];
 const NEUTRAL = { bg: '#16181D', fg: '#ECEAE4' };   // layar tunggu/penalti
 const IDLEBG  = { bg: '',        fg: '' };           // pakai default CSS
+
+// field form <-> key profil tersimpan (biar gak isi gear ulang tiap main)
+const PROFILE_MAP = { '#rx-discord': 'discord', '#rx-mouse': 'mouse', '#rx-poll': 'polling' };
 
 export function createReactionGame(ctx) {
   const root = ctx.mountEl;
@@ -107,6 +110,12 @@ export function createReactionGame(ctx) {
   const resultBox = $('#rx-result', root);
 
   let st = null, last = null, timer = null;
+
+  // Jeda pengaman setelah 5 ronde kelar: klik sisa jangan sampe
+  // nutup popup / mulai lagi sebelum skor sempet di-submit.
+  const END_LOCK_MS = 2500;
+  let lockUntil = 0;
+  const locked = () => performance.now() < lockUntil;
 
   function paint(bg, fg) { pad.style.background = bg || ''; pad.style.color = fg || ''; }
   function renderDots() {
@@ -244,10 +253,13 @@ export function createReactionGame(ctx) {
     // alur: simpan dulu -> baru tombol share muncul. (mobile: gak bisa simpan, share langsung boleh)
     $('#rx-postsave', root).hidden = true;
     $('#rx-share', root).hidden = !mobileRun;
+    lockUntil = performance.now() + END_LOCK_MS;
     showResult();
+    lockAgainBtn($('#rx-again', root), END_LOCK_MS);   // biar gak kepencet "Main Lagi" sebelum submit
     countUp($('#rx-hero-score', root), score);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
     $('#rx-name', root).value = localStorage.getItem('ggs_nick') || '';
+    prefillProfile(root, PROFILE_MAP);   // gear udah pernah disimpen -> auto keisi
   }
 
   pad.addEventListener('pointerdown', (e) => {
@@ -275,6 +287,7 @@ export function createReactionGame(ctx) {
       mouse: cleanText($('#rx-mouse', root).value, 40) || undefined,
       polling: parseInt($('#rx-poll', root).value, 10) || undefined,
     };
+    saveProfile({ discord: detail.discord, mouse: detail.mouse, polling: detail.polling });
     const res = await ctx.onSubmit({ game: 'reaction', score: last.score, player_name: name, detail, run_id: last.run_id });
     if (res.ok) {
       const ps = $('#rx-postsave', root);
@@ -305,8 +318,9 @@ export function createReactionGame(ctx) {
   });
 
   $('#rx-close', root).addEventListener('click', hideResult);
-  $('#rx-again', root).addEventListener('click', () => { hideResult(); reset(); beginRound(); });
-  resultBox.addEventListener('click', (e) => { if (e.target === resultBox) hideResult(); });
+  $('#rx-again', root).addEventListener('click', () => { if (locked()) return; hideResult(); reset(); beginRound(); });
+  // klik backdrop SENGAJA gak nutup popup — banyak player kepencet di luar
+  // popup hasil, skornya keburu ilang sebelum sempet di-submit. Tutup cuma via ✕ / Esc.
   const onKey = (e) => { if (e.key === 'Escape' && resultBox.classList.contains('show')) hideResult(); };
   document.addEventListener('keydown', onKey);
 
