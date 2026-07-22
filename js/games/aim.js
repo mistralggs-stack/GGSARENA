@@ -110,6 +110,37 @@ export function createAimGame(ctx) {
   let lockUntil = 0;
   const locked = () => performance.now() < lockUntil;
 
+  // countdown 3-2-1 sebelum tes mulai (biar sempet siap posisi & pegang mouse)
+  const COUNTDOWN_FROM = 3;
+  let cdTimer = null;
+
+  const HINT_IDLE_HTML = `
+      <div class="label" style="margin-bottom:8px">STATION 01 · TEMBAK TARGET</div>
+      <div style="font-size:18px;font-weight:600">Sikat target secepat mungkin 🎯</div>
+      <div class="mono" style="font-size:12px;color:var(--ink-3);margin-top:8px">Target makin kecil & makin cepat. Jaga combo biar skor gacor.<br>Tekan <b>SPASI</b> atau tombol Mulai.</div>`;
+
+  function cancelCountdown() {
+    if (!cdTimer) return;
+    clearInterval(cdTimer); cdTimer = null;
+    btnStart.disabled = false; btnStop.disabled = true;
+    hint.querySelector('div').innerHTML = HINT_IDLE_HTML;
+  }
+
+  function beginCountdown() {
+    if ((st && st.running) || cdTimer || locked()) return;
+    hideResult();
+    btnStart.disabled = true; btnStop.disabled = false;
+    hint.style.display = 'grid';
+    let n = COUNTDOWN_FROM;
+    const paint = () => { hint.querySelector('div').innerHTML = `<span class="type-countdown">${n}</span>`; };
+    paint(); sfx.go();
+    cdTimer = setInterval(() => {
+      n--;
+      if (n > 0) { paint(); sfx.go(); }
+      else { clearInterval(cdTimer); cdTimer = null; sfx.combo(3); start(); }
+    }, 1000);
+  }
+
   function multiplier(streak) { return clamp(1 + Math.floor(streak / 4), 1, 5); }
 
   function difficulty(elapsedFrac) {
@@ -231,10 +262,7 @@ export function createAimGame(ctx) {
     };
     if (silent) return;   // abort (pindah view) — jangan munculin popup
     lockUntil = performance.now() + END_LOCK_MS;
-    hint.querySelector('div').innerHTML = `
-      <div class="label" style="margin-bottom:8px">STATION 01 · TEMBAK TARGET</div>
-      <div style="font-size:18px;font-weight:600">Sikat target secepat mungkin 🎯</div>
-      <div class="mono" style="font-size:12px;color:var(--ink-3);margin-top:8px">Target makin kecil & makin cepat. Jaga combo biar skor gacor.<br>Tekan <b>SPASI</b> atau tombol Mulai.</div>`;
+    hint.querySelector('div').innerHTML = HINT_IDLE_HTML;
 
     // isi popup
     $('#aim-m-combo', root).textContent = 'x' + st.maxMult;
@@ -274,14 +302,14 @@ export function createAimGame(ctx) {
     if (!e.isTrusted) return;   // klik sintetis dari script/console gak dihitung
     if (!st || !st.running) {
       // run kelar & popup ketutup -> klik arena buka lagi hasilnya (skor jangan ilang)
-      if (last && !resultBox.classList.contains('show') && !locked()) showResult();
+      if (last && !cdTimer && !resultBox.classList.contains('show') && !locked()) showResult();
       return;
     }
     if (!e.target.classList.contains('target')) { st.clickTimes.push(performance.now()); registerMiss(); }
   });
 
-  btnStart.addEventListener('click', () => start());
-  btnStop.addEventListener('click', () => stop());
+  btnStart.addEventListener('click', () => beginCountdown());
+  btnStop.addEventListener('click', () => { if (cdTimer) cancelCountdown(); else stop(); });
   wireFullscreen($('#aim-fs', root), root);
 
   const onKey = (e) => {
@@ -290,7 +318,8 @@ export function createAimGame(ctx) {
     if (resultBox.classList.contains('show')) return;   // modal kebuka -> spasi jangan mulai
     if (e.code === 'Space' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT') {
       e.preventDefault();
-      st && st.running ? stop() : start();
+      if (cdTimer) { cancelCountdown(); return; }        // spasi pas countdown = batal
+      st && st.running ? stop() : beginCountdown();
     }
   };
   document.addEventListener('keydown', onKey);
@@ -344,7 +373,7 @@ export function createAimGame(ctx) {
   });
 
   $('#aim-close', root).addEventListener('click', hideResult);
-  $('#aim-again', root).addEventListener('click', () => { if (locked()) return; hideResult(); start(); });
+  $('#aim-again', root).addEventListener('click', () => { if (locked()) return; hideResult(); beginCountdown(); });
   // klik backdrop SENGAJA gak nutup popup — banyak player kepencet di luar
   // popup hasil, skornya keburu ilang sebelum sempet di-submit. Tutup cuma via ✕ / Esc.
 
@@ -353,7 +382,7 @@ export function createAimGame(ctx) {
 
   return {
     activate() { _active = true; },
-    deactivate() { _active = false; if (st && st.running) stop(true); hideResult(); },
+    deactivate() { _active = false; cancelCountdown(); if (st && st.running) stop(true); hideResult(); },
     destroy() { document.removeEventListener('keydown', onKey); },
   };
 }
