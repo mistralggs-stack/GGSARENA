@@ -5,7 +5,7 @@
 // Touch (HP) boleh main tapi gak bisa submit (fairness).
 // ============================================================
 
-import { $, esc, clamp, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile } from '../util.js';
+import { $, esc, clamp, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
@@ -99,7 +99,7 @@ export function createCpsGame(ctx) {
 
   // Jeda pengaman setelah waktu abis: orang masih spam klik pas timer kelar,
   // klik sisa jangan sampe nutup popup / mulai lagi tanpa sengaja.
-  const END_LOCK_MS = 1500;
+  const END_LOCK_MS = 2500;
   let lockUntil = 0;
   const locked = () => performance.now() < lockUntil;
 
@@ -197,6 +197,7 @@ export function createCpsGame(ctx) {
     $('#cps-postsave', root).hidden = true;
     $('#cps-share', root).hidden = !mobileRun;
     showResult();
+    lockAgainBtn($('#cps-again', root), END_LOCK_MS);   // biar gak kepencet "Main Lagi" sebelum submit
     countUp($('#cps-hero-score', root), clicks);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
     $('#cps-name', root).value = localStorage.getItem('ggs_nick') || '';

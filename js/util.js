@@ -93,6 +93,23 @@ export function prefillProfile(root, map) {
   }
 }
 
+// ---------- Kunci tombol "Main Lagi" sehabis game kelar ----------
+// Banyak player gak sengaja kepencet "Main Lagi" -> skor kereset sebelum
+// sempet di-submit. Tombol di-disable dulu beberapa detik + countdown di label.
+export function lockAgainBtn(btn, ms = 2500) {
+  if (!btn) return;
+  const orig = btn.dataset.origLabel || btn.textContent;
+  btn.dataset.origLabel = orig;
+  btn.disabled = true;
+  const end = performance.now() + ms;
+  const t = setInterval(() => {
+    const left = Math.ceil((end - performance.now()) / 1000);
+    if (left <= 0) { clearInterval(t); btn.disabled = false; btn.textContent = orig; }
+    else { btn.textContent = `${orig} (${left})`; }
+  }, 200);
+  btn.textContent = `${orig} (${Math.ceil(ms / 1000)})`;
+}
+
 // ---------- Deteksi input (buat fairness leaderboard) ----------
 export const hasFinePointer = () => !!(window.matchMedia && window.matchMedia('(pointer: fine)').matches);   // ada mouse/trackpad/pen
 export const isTouchOnly    = () => !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) && !hasFinePointer();

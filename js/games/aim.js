@@ -4,7 +4,7 @@
 // Combo x1–x5. Skor = akumulasi poin (10 x multiplier per hit).
 // ============================================================
 
-import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile } from '../util.js';
+import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
@@ -106,7 +106,7 @@ export function createAimGame(ctx) {
   let last = null;       // hasil run terakhir (untuk save)
 
   // jeda pengaman setelah kelar: klik/pencetan sisa gak bikin restart / nutup popup
-  const END_LOCK_MS = 1500;
+  const END_LOCK_MS = 2500;
   let lockUntil = 0;
   const locked = () => performance.now() < lockUntil;
 
@@ -245,6 +245,7 @@ export function createAimGame(ctx) {
     $('#aim-postsave', root).hidden = true;
     $('#aim-share', root).hidden = !mobileRun;
     showResult();
+    lockAgainBtn($('#aim-again', root), END_LOCK_MS);   // biar gak kepencet "Main Lagi" sebelum submit
     countUp($('#aim-hero-score', root), st.score);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
     $('#aim-name', root).value = localStorage.getItem('ggs_nick') || '';

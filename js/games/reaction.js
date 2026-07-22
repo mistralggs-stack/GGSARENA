@@ -6,7 +6,7 @@
 // Skor = 60000 / rata² ms (makin cepet & akurat makin gede).
 // ============================================================
 
-import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile } from '../util.js';
+import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
@@ -110,6 +110,12 @@ export function createReactionGame(ctx) {
   const resultBox = $('#rx-result', root);
 
   let st = null, last = null, timer = null;
+
+  // Jeda pengaman setelah 5 ronde kelar: klik sisa jangan sampe
+  // nutup popup / mulai lagi sebelum skor sempet di-submit.
+  const END_LOCK_MS = 2500;
+  let lockUntil = 0;
+  const locked = () => performance.now() < lockUntil;
 
   function paint(bg, fg) { pad.style.background = bg || ''; pad.style.color = fg || ''; }
   function renderDots() {
@@ -247,7 +253,9 @@ export function createReactionGame(ctx) {
     // alur: simpan dulu -> baru tombol share muncul. (mobile: gak bisa simpan, share langsung boleh)
     $('#rx-postsave', root).hidden = true;
     $('#rx-share', root).hidden = !mobileRun;
+    lockUntil = performance.now() + END_LOCK_MS;
     showResult();
+    lockAgainBtn($('#rx-again', root), END_LOCK_MS);   // biar gak kepencet "Main Lagi" sebelum submit
     countUp($('#rx-hero-score', root), score);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
     $('#rx-name', root).value = localStorage.getItem('ggs_nick') || '';
@@ -310,8 +318,8 @@ export function createReactionGame(ctx) {
   });
 
   $('#rx-close', root).addEventListener('click', hideResult);
-  $('#rx-again', root).addEventListener('click', () => { hideResult(); reset(); beginRound(); });
-  resultBox.addEventListener('click', (e) => { if (e.target === resultBox) hideResult(); });
+  $('#rx-again', root).addEventListener('click', () => { if (locked()) return; hideResult(); reset(); beginRound(); });
+  resultBox.addEventListener('click', (e) => { if (e.target === resultBox && !locked()) hideResult(); });
   const onKey = (e) => { if (e.key === 'Escape' && resultBox.classList.contains('show')) hideResult(); };
   document.addEventListener('keydown', onKey);
 

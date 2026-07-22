@@ -5,7 +5,7 @@
 // Skor = WPM x akurasi (contoh 80 WPM @ 95% = 76).
 // ============================================================
 
-import { $, esc, cleanText, toast, shareScore, wireFullscreen, isTouchOnly, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile } from '../util.js';
+import { $, esc, cleanText, toast, shareScore, wireFullscreen, isTouchOnly, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile, lockAgainBtn } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
@@ -51,7 +51,7 @@ export function createTypingGame(ctx) {
     </div>
 
     <div class="label" style="margin-bottom:8px">STATION 02 · KETIK CEPAT — 1 MENIT (60 DETIK)</div>
-    <div class="type-text mono" id="typ-text">Tekan tombol Mulai lalu langsung ketik. Skor = WPM × akurasi. Gaskeun! 🔥</div>
+    <div class="type-text mono" id="typ-text">Tekan tombol Mulai (atau SPASI) — ada countdown 3-2-1, terus langsung ketik. Skor = WPM × akurasi. Gaskeun! 🔥</div>
     <input class="type-input mono" id="typ-input" type="text" autocomplete="off" autocapitalize="off"
            autocorrect="off" spellcheck="false" placeholder="Klik di sini terus mulai ngetik..." disabled>
 
@@ -110,9 +110,34 @@ export function createTypingGame(ctx) {
 
   // Jeda pengaman setelah waktu abis: orang masih asik ngetik pas timer kelar,
   // jadi ketikan/pencetan sisa jangan sampe bikin game mulai lagi sendiri.
-  const END_LOCK_MS = 1500;
+  const END_LOCK_MS = 2500;
   let lockUntil = 0;
   const locked = () => performance.now() < lockUntil;
+
+  // countdown 3-2-1 sebelum tes beneran jalan (biar player siap posisi)
+  const COUNTDOWN_FROM = 3;
+  let cdTimer = null;
+
+  function cancelCountdown() {
+    if (!cdTimer) return;
+    clearInterval(cdTimer); cdTimer = null;
+    btnStart.disabled = false; btnStop.disabled = true;
+    elText.textContent = 'Tekan tombol Mulai (atau SPASI) — ada countdown 3-2-1, terus langsung ketik. Skor = WPM × akurasi. Gaskeun! 🔥';
+  }
+
+  function beginCountdown() {
+    if ((st && st.running) || cdTimer || locked()) return;
+    hideResult();
+    btnStart.disabled = true; btnStop.disabled = false;
+    let n = COUNTDOWN_FROM;
+    const paint = () => { elText.innerHTML = `<span class="type-countdown">${n}</span>`; };
+    paint(); sfx.go();
+    cdTimer = setInterval(() => {
+      n--;
+      if (n > 0) { paint(); sfx.go(); }
+      else { clearInterval(cdTimer); cdTimer = null; sfx.combo(3); start(); }
+    }, 1000);
+  }
 
   function render() {
     const { text, idx, wrongSet } = st;
@@ -200,6 +225,7 @@ export function createTypingGame(ctx) {
     $('#typ-postsave', root).hidden = true;
     $('#typ-share', root).hidden = !mobileRun;
     showResult();
+    lockAgainBtn($('#typ-again', root), END_LOCK_MS);   // biar gak kepencet "Main Lagi" sebelum submit
     countUp($('#typ-hero-score', root), r.score);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
     $('#typ-name', root).value = localStorage.getItem('ggs_nick') || '';
@@ -237,8 +263,8 @@ export function createTypingGame(ctx) {
     render(); recompute();
   });
 
-  btnStart.addEventListener('click', () => start());
-  btnStop.addEventListener('click', () => stop());
+  btnStart.addEventListener('click', () => beginCountdown());
+  btnStop.addEventListener('click', () => { if (cdTimer) cancelCountdown(); else stop(); });
   wireFullscreen($('#typ-fs', root), root);
 
   $('#typ-save', root).addEventListener('click', async () => {
@@ -283,14 +309,23 @@ export function createTypingGame(ctx) {
   });
 
   $('#typ-close', root).addEventListener('click', hideResult);
-  $('#typ-again', root).addEventListener('click', () => { if (locked()) return; hideResult(); start(); });
+  $('#typ-again', root).addEventListener('click', () => { if (locked()) return; hideResult(); beginCountdown(); });
   resultBox.addEventListener('click', (e) => { if (e.target === resultBox && !locked()) hideResult(); }); // klik backdrop
-  const onKey = (e) => { if (e.key === 'Escape' && resultBox.classList.contains('show')) hideResult(); };
+  const onKey = (e) => {
+    if (!_active) return;
+    if (e.key === 'Escape' && resultBox.classList.contains('show')) { hideResult(); return; }
+    // SPASI = mulai (dengan countdown) — cuma pas lagi gak main & modal ketutup
+    if (e.code === 'Space' && !resultBox.classList.contains('show') && (!st || !st.running) && !cdTimer
+        && e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON') {
+      e.preventDefault();
+      beginCountdown();
+    }
+  };
   document.addEventListener('keydown', onKey);
 
   return {
     activate() { _active = true; },
-    deactivate() { _active = false; if (st && st.running) stop(true); hideResult(); },
+    deactivate() { _active = false; cancelCountdown(); if (st && st.running) stop(true); hideResult(); },
     destroy() { document.removeEventListener('keydown', onKey); },
   };
 }
