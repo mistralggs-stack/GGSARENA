@@ -6,7 +6,7 @@
 // Skor = 60000 / rata² ms (makin cepet & akurat makin gede).
 // ============================================================
 
-import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate } from '../util.js';
+import { $, esc, clamp, rand, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
@@ -23,6 +23,9 @@ const COLORS = [
 ];
 const NEUTRAL = { bg: '#16181D', fg: '#ECEAE4' };   // layar tunggu/penalti
 const IDLEBG  = { bg: '',        fg: '' };           // pakai default CSS
+
+// field form <-> key profil tersimpan (biar gak isi gear ulang tiap main)
+const PROFILE_MAP = { '#rx-discord': 'discord', '#rx-mouse': 'mouse', '#rx-poll': 'polling' };
 
 export function createReactionGame(ctx) {
   const root = ctx.mountEl;
@@ -248,6 +251,7 @@ export function createReactionGame(ctx) {
     countUp($('#rx-hero-score', root), score);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
     $('#rx-name', root).value = localStorage.getItem('ggs_nick') || '';
+    prefillProfile(root, PROFILE_MAP);   // gear udah pernah disimpen -> auto keisi
   }
 
   pad.addEventListener('pointerdown', (e) => {
@@ -275,6 +279,7 @@ export function createReactionGame(ctx) {
       mouse: cleanText($('#rx-mouse', root).value, 40) || undefined,
       polling: parseInt($('#rx-poll', root).value, 10) || undefined,
     };
+    saveProfile({ discord: detail.discord, mouse: detail.mouse, polling: detail.polling });
     const res = await ctx.onSubmit({ game: 'reaction', score: last.score, player_name: name, detail, run_id: last.run_id });
     if (res.ok) {
       const ps = $('#rx-postsave', root);

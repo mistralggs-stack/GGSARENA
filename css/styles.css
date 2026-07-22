@@ -329,13 +329,10 @@ a{ color:var(--accent-ink); }
 .target::after{ content:"+"; font-size:0.7em; opacity:.9; }
 .target:active{ transform:scale(.9); }
 
-.combo-flag{
-  position:absolute; top:10px; left:10px; z-index:3;
-  font-family:var(--font-mono); font-size:12px; letter-spacing:0.1em;
-  background:var(--ink); color:var(--paper);
-  padding:4px 10px; border-radius:var(--radius);
-}
-.combo-flag b{ color:var(--accent); }
+/* combo naik -> readout Combo di atas arena "pop" sebentar
+   (dulu ada flag di dalam arena, dihapus karena nutupin target) */
+.readout .r-val.pop{ animation:comboPop .28s ease; }
+@keyframes comboPop{ 50%{ transform:scale(1.3); color:var(--accent); } }
 
 /* ============================================================
    Typing field
@@ -706,12 +703,12 @@ body{
 .brand .wordmark b{ color:var(--ink); }
 .brand .wordmark b .red{ color:var(--accent-ink); }
 
-/* headline hero */
+/* headline hero — dikecilin biar proper di HP maupun PC (gak norak) */
 #view-hub h1{
   font-family:var(--font-hero);
   text-transform:uppercase; font-style:italic;
-  letter-spacing:0; line-height:1.04;
-  font-size:clamp(28px,5.6vw,52px);
+  letter-spacing:0; line-height:1.15;
+  font-size:clamp(18px,2.6vw,28px);
 }
 #view-hub h1 .l2{ color:var(--accent-ink); display:block; }
 

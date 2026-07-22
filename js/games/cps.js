@@ -5,12 +5,18 @@
 // Touch (HP) boleh main tapi gak bisa submit (fairness).
 // ============================================================
 
-import { $, esc, clamp, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate } from '../util.js';
+import { $, esc, clamp, cleanText, toast, shareScore, wireFullscreen, MOBILE_BLOCK_MSG, setSubmitGate, saveProfile, prefillProfile } from '../util.js';
 import { sfx, confetti, countUp } from '../fx.js';
 import { checkRecord } from '../store.js';
 import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
 
 const DURATION = 10;   // detik
+
+// field form <-> key profil tersimpan (biar gak isi gear ulang tiap main)
+const PROFILE_MAP = {
+  '#cps-discord': 'discord', '#cps-mouse': 'mouse', '#cps-switch': 'mouse_switch',
+  '#cps-poll': 'polling', '#cps-tech': 'technique',
+};
 
 export function createCpsGame(ctx) {
   const root = ctx.mountEl;
@@ -91,6 +97,12 @@ export function createCpsGame(ctx) {
 
   let st = null, last = null;
 
+  // Jeda pengaman setelah waktu abis: orang masih spam klik pas timer kelar,
+  // klik sisa jangan sampe nutup popup / mulai lagi tanpa sengaja.
+  const END_LOCK_MS = 1500;
+  let lockUntil = 0;
+  const locked = () => performance.now() < lockUntil;
+
   function showResult() { resultBox.classList.add('show'); }
   function hideResult() { resultBox.classList.remove('show'); }
 
@@ -125,7 +137,7 @@ export function createCpsGame(ctx) {
 
   function onPadClick(e) {
     if (!st || !st.running) {
-      if (resultBox.classList.contains('show')) return;
+      if (resultBox.classList.contains('show') || locked()) return;
       start();
       return;
     }
@@ -148,6 +160,7 @@ export function createCpsGame(ctx) {
     st.running = false;
     clearInterval(st.tick);
     pad.dataset.state = 'done';
+    lockUntil = performance.now() + END_LOCK_MS;
 
     const clicks = st.clicks;
     const avg = Math.round((clicks / DURATION) * 10) / 10;
@@ -187,6 +200,7 @@ export function createCpsGame(ctx) {
     countUp($('#cps-hero-score', root), clicks);
     if (isRec) { confetti(); sfx.record(); } else { sfx.win(); }
     $('#cps-name', root).value = localStorage.getItem('ggs_nick') || '';
+    prefillProfile(root, PROFILE_MAP);   // gear udah pernah disimpen -> auto keisi
   }
 
   pad.addEventListener('pointerdown', onPadClick);
@@ -206,6 +220,7 @@ export function createCpsGame(ctx) {
       polling: parseInt($('#cps-poll', root).value, 10) || undefined,
       technique: cleanText($('#cps-tech', root).value, 20) || undefined,
     };
+    saveProfile({ discord: detail.discord, mouse: detail.mouse, mouse_switch: detail.switches, polling: detail.polling, technique: detail.technique });
     const res = await ctx.onSubmit({ game: 'cps', score: last.score, player_name: name, detail, run_id: last.run_id });
     if (res.ok) {
       const ps = $('#cps-postsave', root);
@@ -236,8 +251,8 @@ export function createCpsGame(ctx) {
   });
 
   $('#cps-close', root).addEventListener('click', hideResult);
-  $('#cps-again', root).addEventListener('click', () => { hideResult(); reset(); start(); });
-  resultBox.addEventListener('click', (e) => { if (e.target === resultBox) hideResult(); });
+  $('#cps-again', root).addEventListener('click', () => { if (locked()) return; hideResult(); reset(); start(); });
+  resultBox.addEventListener('click', (e) => { if (e.target === resultBox && !locked()) hideResult(); });
   const onKey = (e) => { if (e.key === 'Escape' && resultBox.classList.contains('show')) hideResult(); };
   document.addEventListener('keydown', onKey);
 
