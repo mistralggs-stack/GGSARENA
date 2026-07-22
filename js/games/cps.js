@@ -12,6 +12,12 @@ import { shareScoreCard, shareOutcomeToast } from '../scorecard.js';
 
 const DURATION = 10;   // detik
 
+// Batas manusia (keputusan owner): rata² >19 CPS selama 10 detik cuma bisa
+// dicapai macro/drag — di atas ini otomatis kedetek curang, gak perlu verifikasi video.
+// Referensi: normal 8-10, jitter top 12-14, butterfly paling gacor 15-19.
+const MAX_HUMAN_AVG_CPS  = 19;   // rata² sepanjang 10 detik
+const MAX_HUMAN_PEAK_SEC = 25;   // klik terbanyak dalam 1 detik (biar macro burst singkat juga kena)
+
 // field form <-> key profil tersimpan (biar gak isi gear ulang tiap main)
 const PROFILE_MAP = {
   '#cps-discord': 'discord', '#cps-mouse': 'mouse', '#cps-switch': 'mouse_switch',
@@ -42,7 +48,7 @@ export function createCpsGame(ctx) {
     <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
       <button class="btn ghost" id="cps-reset">↺ Ulang</button>
       <button class="btn ghost" id="cps-fs">⛶ Layar Penuh</button>
-      <div class="mono" style="font-size:11px;color:var(--ink-3);align-self:center">Jitter, butterfly, terserah — yang penting sah: 1 jari 1 mouse</div>
+      <div class="mono" style="font-size:11px;color:var(--ink-3);align-self:center">Jitter, butterfly, terserah — yang penting sah: 1 jari 1 mouse · batas manusia: maks ${MAX_HUMAN_AVG_CPS} CPS (lebih = kedetek macro)</div>
     </div>
 
     <div class="modal-overlay" id="cps-result">
@@ -184,7 +190,8 @@ export function createCpsGame(ctx) {
     // Threshold sengaja longgar biar jitter/butterfly/drag yang sah gak kena.
     const an = analyzeClickIntervals(st.clickTimes);
     const flags = [];
-    if (avg > 35) flags.push('cps_mustahil');                                    // >35 CPS rata² 10 dtk = bukan manusia
+    if (avg > MAX_HUMAN_AVG_CPS) flags.push('over_batas_cps');                   // di atas batas manusia -> pasti macro/alat
+    if (peak > MAX_HUMAN_PEAK_SEC) flags.push('burst_detik_mustahil');           // 1 detik kebanyakan klik -> macro burst
     if (clicks >= 30 && an.cv !== null && an.cv < 0.06) flags.push('interval_metronom');  // rapi kayak metronom
     const under10 = an.intervals.filter((v) => v < 10).length;
     if (an.intervals.length >= 20 && under10 / an.intervals.length > 0.6) flags.push('burst_mustahil');  // mayoritas klik <10ms
@@ -202,7 +209,9 @@ export function createCpsGame(ctx) {
     $('#cps-m-avg', root).textContent = avg.toFixed(1);
     $('#cps-m-peak', root).textContent = peak;
     $('#cps-m-cons', root).textContent = cons + '%';
+    const overLimit = flags.includes('over_batas_cps') || flags.includes('burst_detik_mustahil');
     $('#cps-hero-tag', root).textContent =
+      overLimit ? '🤖 Over batas manusia — kedetek macro' :
       macroRun ? '🤖 Pola klik macro kedetek' :
       avg >= 12 ? 'Jari lo mesin! ⚡' : avg >= 8 ? 'Gacor! 🔥' : avg >= 5 ? 'Lumayan, gas lagi 💪' : 'Warm up dulu 🐢';
 
@@ -216,7 +225,9 @@ export function createCpsGame(ctx) {
     }
     recEl.hidden = !isRec;
 
-    $('#cps-gate', root).textContent = macroRun ? MACRO_BLOCK_MSG : MOBILE_BLOCK_MSG;
+    $('#cps-gate', root).textContent =
+      overLimit ? `⚡ Skor lo ngelewatin batas manusia (maks ${MAX_HUMAN_AVG_CPS} CPS rata² · maks ${MAX_HUMAN_PEAK_SEC} klik/detik). Sistem otomatis nge-flag ini sebagai macro — skor gak bisa masuk leaderboard.`
+      : macroRun ? MACRO_BLOCK_MSG : MOBILE_BLOCK_MSG;
     setSubmitGate(root, mobileRun || macroRun, { gate: '#cps-gate', form: '#cps-form', save: '#cps-save' });
     // alur: simpan dulu -> baru tombol share muncul. (mobile: gak bisa simpan, share langsung boleh)
     $('#cps-postsave', root).hidden = true;
