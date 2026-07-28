@@ -122,10 +122,9 @@ function renderAllHubBoards() { Object.keys(GAME_META).forEach(renderHubBoard); 
 // Isi array ini buat nampilin sponsor (kiri→kanan). Kosongin = tampil placeholder.
 // Contoh: { name:'Brand X', img:'assets/sponsors/brandx.png', url:'https://brandx.com' }
 const SPONSORS = [
-  // >>> CONTOH sponsor (biar keliatan perspektifnya) — ganti/isi punya lo <<<
-  { name: 'VOLTZ',    img: 'assets/sponsors/sponsor-1.svg', url: 'https://goodgamingshop.com' },
-  { name: 'GLIDR',    img: 'assets/sponsors/sponsor-2.svg', url: 'https://goodgamingshop.com' },
-  { name: 'APEXKEYS', img: 'assets/sponsors/sponsor-3.svg', url: 'https://goodgamingshop.com' },
+  { name: 'Unusual Way Sports', img: 'assets/sponsors/sponsor-unusualway.jpg', url: 'https://goodgamingshop.com' },
+  { name: 'OIC',                img: 'assets/sponsors/sponsor-oic.jpg',        url: 'https://goodgamingshop.com' },
+  { name: 'Try More Get More',  img: 'assets/sponsors/sponsor-trymore.jpg',    url: 'https://goodgamingshop.com' },
 ];
 function renderSponsors() {
   const grid = $('#sponsors');
