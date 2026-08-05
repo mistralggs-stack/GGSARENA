@@ -49,6 +49,17 @@ function monthRange(month) {
   return { start: `${month}-01T00:00:00.000Z`, end: `${next}-01T00:00:00.000Z` };
 }
 
+/**
+ * Rentang tanggal 'YYYY-MM-DD' -> ISO UTC.
+ * Dihitung pakai zona waktu pemain (WIB dst) — jadi "22 Juli" = 22 Juli
+ * menurut jam lokal dia, bukan jam UTC yang geser 7 jam.
+ */
+function dayRange(from, to) {
+  const start = from ? new Date(`${from}T00:00:00`).toISOString() : null;
+  const end   = to   ? new Date(`${to}T23:59:59.999`).toISOString() : null;
+  return { start, end };
+}
+
 // ---------- submitScore ----------
 /**
  * entry: { player_name, game, score, detail, run_id, event_id? }
@@ -110,7 +121,9 @@ export async function submitScore(entry) {
 }
 
 // ---------- getLeaderboard ----------
-export async function getLeaderboard({ game, eventId = null, month = null, limit = 50 } = {}) {
+export async function getLeaderboard({ game, eventId = null, month = null, from = null, to = null, limit = 50 } = {}) {
+  const range = (from || to) ? dayRange(from, to) : null;
+
   if (SB_ACTIVE) {
     try {
       const client = await sb();
@@ -124,6 +137,10 @@ export async function getLeaderboard({ game, eventId = null, month = null, limit
         const { start, end } = monthRange(month);
         q = q.gte('created_at', start).lt('created_at', end);
       }
+      if (range) {
+        if (range.start) q = q.gte('created_at', range.start);
+        if (range.end)   q = q.lte('created_at', range.end);
+      }
       const { data, error } = await q;
       return error ? [] : (data || []);
     } catch { return []; }
@@ -133,6 +150,10 @@ export async function getLeaderboard({ game, eventId = null, month = null, limit
   if (game) rows = rows.filter((r) => r.game === game);
   if (eventId !== null) rows = rows.filter((r) => r.event_id === eventId);
   if (month) rows = rows.filter((r) => String(r.created_at).slice(0, 7) === month);
+  if (range) {
+    if (range.start) rows = rows.filter((r) => r.created_at >= range.start);
+    if (range.end)   rows = rows.filter((r) => r.created_at <= range.end);
+  }
   rows.sort((a, b) => b.score - a.score || new Date(a.created_at) - new Date(b.created_at));
   return rows.slice(0, limit);
 }

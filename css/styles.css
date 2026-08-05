@@ -483,6 +483,25 @@ a{ color:var(--accent-ink); }
 /* toggle scope di hub-board */
 .hb-scope{ padding:8px 12px 0; flex:0 0 auto; }
 
+/* filter tanggal di view leaderboard */
+.board-filter{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-left:auto; }
+.date-range{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.dr-field{ display:flex; align-items:center; gap:6px; }
+.dr-field input[type="date"]{
+  font-family:var(--font-mono); font-size:12px;
+  background:var(--paper); color:var(--ink);
+  border:1.5px solid var(--line-hair); border-radius:var(--radius);
+  padding:6px 8px; outline:none;
+}
+.dr-field input[type="date"]:focus{ border-color:var(--accent); }
+.dr-field input[type="date"]::-webkit-calendar-picker-indicator{ filter:invert(1); opacity:.6; cursor:pointer; }
+@media (max-width:560px){
+  .board-filter{ width:100%; margin-left:0; }
+  .date-range{ width:100%; }
+  .dr-field{ flex:1 1 46%; }
+  .dr-field input[type="date"]{ width:100%; }
+}
+
 /* ============================================================
    View routing
    ============================================================ */
