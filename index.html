@@ -300,9 +300,20 @@
         <span class="fig">FIG. 05</span>
         <svg class="ico-hd"><use href="#ico-trophy"/></svg>
         <h2>Leaderboard <span class="micro">/ Semua Station</span></h2>
-        <div class="seg seg-sm" id="board-scope" style="margin-left:auto">
-          <button data-s="all" class="active">All-time</button>
-          <button data-s="month">Bulan Ini</button>
+        <div class="board-filter">
+          <div class="seg seg-sm" id="board-scope">
+            <button data-s="all" class="active">All-time</button>
+            <button data-s="range">Per Tanggal</button>
+          </div>
+          <div class="date-range" id="board-range" hidden>
+            <label class="dr-field"><span class="label">Dari</span><input type="date" id="board-from"></label>
+            <label class="dr-field"><span class="label">Sampai</span><input type="date" id="board-to"></label>
+            <div class="seg seg-sm" id="range-preset">
+              <button data-p="today">Hari Ini</button>
+              <button data-p="7d">7 Hari</button>
+              <button data-p="month">Bulan Ini</button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="board-grid" id="board-grid"></div>

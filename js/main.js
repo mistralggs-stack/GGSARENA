@@ -195,16 +195,33 @@ async function renderBoard(game) {
 
 // ---------- Leaderboard semua station (view "board") ----------
 const BOARD_ICONS = { aim: '#ico-aim', typing: '#ico-typing', reaction: '#ico-reaction', cps: '#ico-cps' };
-let boardScope = 'all';
+let boardScope = 'all';               // 'all' | 'range'
+let boardFrom = null, boardTo = null; // 'YYYY-MM-DD' (zona waktu pemain)
+
+/** Tanggal hari ini 'YYYY-MM-DD' menurut jam lokal pemain (bukan UTC) */
+function todayLocal(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function rangeLabel() {
+  if (!boardFrom && !boardTo) return 'rentang ini';
+  if (boardFrom === boardTo) return `tanggal ${boardFrom}`;
+  return `${boardFrom || '…'} s/d ${boardTo || '…'}`;
+}
+
 async function renderBoardView() {
   const grid = $('#board-grid');
   if (!grid) return;
-  const month = boardScope === 'month' ? currentMonth() : null;
+  const useRange = boardScope === 'range';
+  const from = useRange ? boardFrom : null;
+  const to   = useRange ? boardTo   : null;
   const panels = await Promise.all(Object.keys(GAME_META).map(async (game) => {
-    const rows = await getLeaderboard({ game, eventId: null, month, limit: 50 });
+    const rows = await getLeaderboard({ game, eventId: null, from, to, limit: 50 });
     const body = rows.length
       ? rows.map((r, i) => lbRowHTML(game, r, i)).join('')
-      : `<div class="lb-empty">${month ? 'Belum ada skor bulan ini.' : 'Belum ada skor.'} Sikat! 🔥</div>`;
+      : `<div class="lb-empty">${useRange ? `Belum ada skor di ${esc(rangeLabel())}.` : 'Belum ada skor.'} Sikat! 🔥</div>`;
     return `
       <div class="panel">
         <div class="panel-hd">
@@ -218,11 +235,46 @@ async function renderBoardView() {
   }));
   grid.innerHTML = panels.join('');
 }
-$$('#board-scope button').forEach((b) => b.addEventListener('click', () => {
-  $$('#board-scope button').forEach((x) => x.classList.remove('active'));
-  b.classList.add('active');
-  boardScope = b.dataset.s;
+
+// ---------- Filter tanggal di view "board" ----------
+const elRange = $('#board-range');
+const elFrom  = $('#board-from');
+const elTo    = $('#board-to');
+
+function paintScopeButtons() {
+  $$('#board-scope button').forEach((x) => x.classList.toggle('active', x.dataset.s === boardScope));
+  if (elRange) elRange.hidden = boardScope !== 'range';
+}
+
+function applyRange(from, to) {
+  boardFrom = from; boardTo = to;
+  if (elFrom) elFrom.value = from || '';
+  if (elTo) elTo.value = to || '';
+  boardScope = 'range';
+  paintScopeButtons();
   renderBoardView();
+}
+
+$$('#board-scope button').forEach((b) => b.addEventListener('click', () => {
+  boardScope = b.dataset.s;
+  // pertama kali buka "Per Tanggal": default hari ini biar langsung kepake buat event harian
+  if (boardScope === 'range' && !boardFrom && !boardTo) { applyRange(todayLocal(), todayLocal()); return; }
+  paintScopeButtons();
+  renderBoardView();
+}));
+
+[elFrom, elTo].forEach((el) => el && el.addEventListener('change', () => {
+  let from = elFrom.value || null;
+  let to = elTo.value || null;
+  if (from && to && from > to) [from, to] = [to, from];   // kebalik? tuker aja
+  applyRange(from, to);
+}));
+
+$$('#range-preset button').forEach((b) => b.addEventListener('click', () => {
+  const p = b.dataset.p;
+  if (p === 'today') applyRange(todayLocal(), todayLocal());
+  else if (p === '7d') applyRange(todayLocal(-6), todayLocal());
+  else if (p === 'month') applyRange(currentMonth() + '-01', todayLocal());
 }));
 
 // ---------- Panel hero: top 5 skor bulan ini (gabungan semua game) ----------
